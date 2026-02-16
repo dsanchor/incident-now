@@ -2,6 +2,8 @@
 
 IT incident management platform with a REST API backend and an Angular frontend.
 
+![Dashboard](images/dashboard.png)
+
 ## Repository Structure
 
 ```
