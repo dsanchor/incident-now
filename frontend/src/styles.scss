@@ -1,0 +1,55 @@
+@use '@angular/material' as mat;
+
+html,
+body {
+    height: 100%;
+    margin: 0;
+    font-family: Roboto, 'Helvetica Neue', sans-serif;
+}
+
+// Material 3 theme
+@include mat.core();
+
+$theme: mat.define-theme((color: (theme-type: light,
+                primary: mat.$azure-palette,
+                tertiary: mat.$blue-palette,
+            ),
+            typography: (brand-family: 'Roboto, sans-serif',
+                plain-family: 'Roboto, sans-serif',
+            ),
+            density: (scale: 0,
+            ),
+        ));
+
+html {
+    @include mat.all-component-themes($theme);
+}
+
+// Global utilities
+a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.spacer {
+    flex: 1 1 auto;
+}
+
+// Scrollbar styling
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.3);
+}

@@ -1,0 +1,1969 @@
+openapi: 3.0.3
+info:
+  title: Incident Management API
+  description: |
+    REST API for managing IT incidents, owners, and optional GitHub repository integration.
+    Provides full CRUD operations along with filtering, searching, and statistics endpoints.
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@incident-now.io
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local development server
+  - url: https://api.incident-now.io/v1
+    description: Production server
+
+tags:
+  - name: Incidents
+    description: Operations for managing IT incidents
+  - name: Owners
+    description: Operations for managing incident owners
+  - name: Statistics
+    description: Incident statistics and metrics
+
+paths:
+  # ==================== INCIDENTS ====================
+  /incidents:
+    get:
+      tags:
+        - Incidents
+      summary: List all incidents
+      description: Retrieve a paginated list of incidents with optional filtering
+      operationId: listIncidents
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - $ref: '#/components/parameters/SortByParam'
+        - $ref: '#/components/parameters/SortOrderParam'
+        - name: status
+          in: query
+          description: Filter by incident status
+          schema:
+            $ref: '#/components/schemas/IncidentStatus'
+        - name: priority
+          in: query
+          description: Filter by priority level
+          schema:
+            $ref: '#/components/schemas/Priority'
+        - name: severity
+          in: query
+          description: Filter by severity level
+          schema:
+            $ref: '#/components/schemas/Severity'
+        - name: category
+          in: query
+          description: Filter by incident category
+          schema:
+            $ref: '#/components/schemas/IncidentCategory'
+        - name: ownerId
+          in: query
+          description: Filter by owner ID
+          schema:
+            type: string
+            format: uuid
+        - name: assigneeId
+          in: query
+          description: Filter by assignee ID
+          schema:
+            type: string
+            format: uuid
+        - name: tags
+          in: query
+          description: Filter by tags (comma-separated)
+          schema:
+            type: string
+          example: "network,critical"
+        - name: createdAfter
+          in: query
+          description: Filter incidents created after this date
+          schema:
+            type: string
+            format: date-time
+        - name: createdBefore
+          in: query
+          description: Filter incidents created before this date
+          schema:
+            type: string
+            format: date-time
+        - name: resolvedAfter
+          in: query
+          description: Filter incidents resolved after this date
+          schema:
+            type: string
+            format: date-time
+        - name: resolvedBefore
+          in: query
+          description: Filter incidents resolved before this date
+          schema:
+            type: string
+            format: date-time
+        - name: hasGithubRepo
+          in: query
+          description: Filter incidents with/without GitHub repository link
+          schema:
+            type: boolean
+        - name: search
+          in: query
+          description: Search in title, description, and affected systems
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncidentListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags:
+        - Incidents
+      summary: Create a new incident
+      description: Create a new IT incident
+      operationId: createIncident
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IncidentCreate'
+      responses:
+        '201':
+          description: Incident created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Incident'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /incidents/{incidentId}:
+    get:
+      tags:
+        - Incidents
+      summary: Get incident by ID
+      description: Retrieve a specific incident by its ID
+      operationId: getIncidentById
+      parameters:
+        - $ref: '#/components/parameters/IncidentIdParam'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Incident'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    put:
+      tags:
+        - Incidents
+      summary: Update an incident
+      description: Update an existing incident (full replacement)
+      operationId: updateIncident
+      parameters:
+        - $ref: '#/components/parameters/IncidentIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IncidentUpdate'
+      responses:
+        '200':
+          description: Incident updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Incident'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    patch:
+      tags:
+        - Incidents
+      summary: Partially update an incident
+      description: Update specific fields of an existing incident
+      operationId: patchIncident
+      parameters:
+        - $ref: '#/components/parameters/IncidentIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IncidentPatch'
+      responses:
+        '200':
+          description: Incident updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Incident'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      tags:
+        - Incidents
+      summary: Delete an incident
+      description: Delete an incident by its ID
+      operationId: deleteIncident
+      parameters:
+        - $ref: '#/components/parameters/IncidentIdParam'
+      responses:
+        '204':
+          description: Incident deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /incidents/{incidentId}/resolve:
+    post:
+      tags:
+        - Incidents
+      summary: Resolve an incident
+      description: Mark an incident as resolved with resolution details
+      operationId: resolveIncident
+      parameters:
+        - $ref: '#/components/parameters/IncidentIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IncidentResolution'
+      responses:
+        '200':
+          description: Incident resolved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Incident'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Incident is already resolved or closed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /incidents/{incidentId}/close:
+    post:
+      tags:
+        - Incidents
+      summary: Close an incident
+      description: Close a resolved incident
+      operationId: closeIncident
+      parameters:
+        - $ref: '#/components/parameters/IncidentIdParam'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                closingNotes:
+                  type: string
+                  description: Optional closing notes
+      responses:
+        '200':
+          description: Incident closed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Incident'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Incident must be resolved before closing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /incidents/{incidentId}/reopen:
+    post:
+      tags:
+        - Incidents
+      summary: Reopen an incident
+      description: Reopen a closed or resolved incident
+      operationId: reopenIncident
+      parameters:
+        - $ref: '#/components/parameters/IncidentIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - reason
+              properties:
+                reason:
+                  type: string
+                  description: Reason for reopening the incident
+      responses:
+        '200':
+          description: Incident reopened successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Incident'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Incident is not in a reopenable state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /incidents/{incidentId}/assign:
+    post:
+      tags:
+        - Incidents
+      summary: Assign users to an incident
+      description: Assign one or more users to work on an incident
+      operationId: assignIncident
+      parameters:
+        - $ref: '#/components/parameters/IncidentIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - assigneeIds
+              properties:
+                assigneeIds:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                  description: List of owner IDs to assign
+      responses:
+        '200':
+          description: Assignees updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Incident'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /incidents/{incidentId}/comments:
+    get:
+      tags:
+        - Incidents
+      summary: Get incident comments
+      description: Retrieve all comments for an incident
+      operationId: getIncidentComments
+      parameters:
+        - $ref: '#/components/parameters/IncidentIdParam'
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommentListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags:
+        - Incidents
+      summary: Add a comment to an incident
+      description: Add a new comment to an incident
+      operationId: addIncidentComment
+      parameters:
+        - $ref: '#/components/parameters/IncidentIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommentCreate'
+      responses:
+        '201':
+          description: Comment added successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /incidents/{incidentId}/timeline:
+    get:
+      tags:
+        - Incidents
+      summary: Get incident timeline
+      description: Retrieve the audit timeline/history for an incident
+      operationId: getIncidentTimeline
+      parameters:
+        - $ref: '#/components/parameters/IncidentIdParam'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TimelineEvent'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ==================== OWNERS ====================
+  /owners:
+    get:
+      tags:
+        - Owners
+      summary: List all owners
+      description: Retrieve a paginated list of owners
+      operationId: listOwners
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: active
+          in: query
+          description: Filter by active status
+          schema:
+            type: boolean
+        - name: team
+          in: query
+          description: Filter by team name
+          schema:
+            type: string
+        - name: role
+          in: query
+          description: Filter by role
+          schema:
+            $ref: '#/components/schemas/OwnerRole'
+        - name: search
+          in: query
+          description: Search in name and email
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnerListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags:
+        - Owners
+      summary: Create a new owner
+      description: Create a new owner/user
+      operationId: createOwner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OwnerCreate'
+      responses:
+        '201':
+          description: Owner created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Owner'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Owner with this email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /owners/{ownerId}:
+    get:
+      tags:
+        - Owners
+      summary: Get owner by ID
+      description: Retrieve a specific owner by their ID
+      operationId: getOwnerById
+      parameters:
+        - $ref: '#/components/parameters/OwnerIdParam'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Owner'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    put:
+      tags:
+        - Owners
+      summary: Update an owner
+      description: Update an existing owner (full replacement)
+      operationId: updateOwner
+      parameters:
+        - $ref: '#/components/parameters/OwnerIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OwnerUpdate'
+      responses:
+        '200':
+          description: Owner updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Owner'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Owner with this email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    patch:
+      tags:
+        - Owners
+      summary: Partially update an owner
+      description: Update specific fields of an existing owner
+      operationId: patchOwner
+      parameters:
+        - $ref: '#/components/parameters/OwnerIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OwnerPatch'
+      responses:
+        '200':
+          description: Owner updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Owner'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Owner with this email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      tags:
+        - Owners
+      summary: Delete an owner
+      description: Delete an owner by their ID (soft delete - sets active to false)
+      operationId: deleteOwner
+      parameters:
+        - $ref: '#/components/parameters/OwnerIdParam'
+      responses:
+        '204':
+          description: Owner deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Cannot delete owner with active incidents
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /owners/{ownerId}/incidents:
+    get:
+      tags:
+        - Owners
+      summary: Get incidents owned by user
+      description: Retrieve all incidents where this owner is the primary owner
+      operationId: getOwnerIncidents
+      parameters:
+        - $ref: '#/components/parameters/OwnerIdParam'
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: status
+          in: query
+          description: Filter by incident status
+          schema:
+            $ref: '#/components/schemas/IncidentStatus'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncidentListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /owners/{ownerId}/assigned-incidents:
+    get:
+      tags:
+        - Owners
+      summary: Get incidents assigned to user
+      description: Retrieve all incidents where this owner is assigned
+      operationId: getOwnerAssignedIncidents
+      parameters:
+        - $ref: '#/components/parameters/OwnerIdParam'
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: status
+          in: query
+          description: Filter by incident status
+          schema:
+            $ref: '#/components/schemas/IncidentStatus'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncidentListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ==================== STATISTICS ====================
+  /statistics/summary:
+    get:
+      tags:
+        - Statistics
+      summary: Get incident summary statistics
+      description: Retrieve summary statistics for incidents
+      operationId: getIncidentSummary
+      parameters:
+        - name: from
+          in: query
+          description: Start date for statistics
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          description: End date for statistics
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncidentSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /statistics/by-status:
+    get:
+      tags:
+        - Statistics
+      summary: Get incidents grouped by status
+      description: Retrieve incident counts grouped by status
+      operationId: getIncidentsByStatus
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StatusCount'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /statistics/by-priority:
+    get:
+      tags:
+        - Statistics
+      summary: Get incidents grouped by priority
+      description: Retrieve incident counts grouped by priority
+      operationId: getIncidentsByPriority
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PriorityCount'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /statistics/by-category:
+    get:
+      tags:
+        - Statistics
+      summary: Get incidents grouped by category
+      description: Retrieve incident counts grouped by category
+      operationId: getIncidentsByCategory
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CategoryCount'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /statistics/by-owner:
+    get:
+      tags:
+        - Statistics
+      summary: Get incidents grouped by owner
+      description: Retrieve incident counts grouped by owner
+      operationId: getIncidentsByOwner
+      parameters:
+        - name: limit
+          in: query
+          description: Limit number of owners returned
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OwnerCount'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /statistics/resolution-time:
+    get:
+      tags:
+        - Statistics
+      summary: Get average resolution time
+      description: Retrieve average resolution time statistics
+      operationId: getResolutionTimeStats
+      parameters:
+        - name: from
+          in: query
+          description: Start date for statistics
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          description: End date for statistics
+          schema:
+            type: string
+            format: date
+        - name: groupBy
+          in: query
+          description: Group results by time period
+          schema:
+            type: string
+            enum: [day, week, month]
+            default: week
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResolutionTimeStats'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /statistics/trends:
+    get:
+      tags:
+        - Statistics
+      summary: Get incident trends
+      description: Retrieve incident creation trends over time
+      operationId: getIncidentTrends
+      parameters:
+        - name: from
+          in: query
+          description: Start date for trends
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          description: End date for trends
+          schema:
+            type: string
+            format: date
+        - name: groupBy
+          in: query
+          description: Group results by time period
+          schema:
+            type: string
+            enum: [day, week, month]
+            default: week
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TrendData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  # ==================== SCHEMAS ====================
+  schemas:
+    # ----- Enums -----
+    IncidentStatus:
+      type: string
+      enum:
+        - open
+        - in_progress
+        - on_hold
+        - resolved
+        - closed
+      description: Current status of the incident
+
+    Priority:
+      type: string
+      enum:
+        - low
+        - medium
+        - high
+        - critical
+      description: Priority level of the incident
+
+    Severity:
+      type: string
+      enum:
+        - low
+        - medium
+        - high
+        - critical
+      description: Severity level indicating business impact
+
+    IncidentCategory:
+      type: string
+      enum:
+        - network
+        - hardware
+        - software
+        - security
+        - database
+        - cloud_infrastructure
+        - application
+        - performance
+        - access_permissions
+        - other
+      description: Category of the incident
+
+    OwnerRole:
+      type: string
+      enum:
+        - engineer
+        - senior_engineer
+        - team_lead
+        - manager
+        - admin
+      description: Role of the owner/user
+
+    # ----- GitHub Repository -----
+    GitHubRepo:
+      type: object
+      description: Optional GitHub repository information linked to an incident
+      properties:
+        repoOwner:
+          type: string
+          description: GitHub repository owner/organization
+          example: "microsoft"
+        repoName:
+          type: string
+          description: GitHub repository name
+          example: "incident-now"
+        repoUrl:
+          type: string
+          format: uri
+          description: Full URL to the GitHub repository
+          example: "https://github.com/microsoft/incident-now"
+        branch:
+          type: string
+          description: Related branch name
+          example: "fix/incident-123"
+        issueNumber:
+          type: integer
+          description: Related GitHub issue number
+          example: 456
+        issueUrl:
+          type: string
+          format: uri
+          description: Full URL to the related GitHub issue
+          example: "https://github.com/microsoft/incident-now/issues/456"
+        pullRequestNumber:
+          type: integer
+          description: Related pull request number
+          example: 789
+        pullRequestUrl:
+          type: string
+          format: uri
+          description: Full URL to the related pull request
+          example: "https://github.com/microsoft/incident-now/pull/789"
+        commitSha:
+          type: string
+          description: Related commit SHA
+          example: "a1b2c3d4e5f6..."
+
+    GitHubRepoInput:
+      type: object
+      description: GitHub repository information for create/update operations
+      properties:
+        repoOwner:
+          type: string
+          description: GitHub repository owner/organization
+        repoName:
+          type: string
+          description: GitHub repository name
+        branch:
+          type: string
+          description: Related branch name
+        issueNumber:
+          type: integer
+          description: Related GitHub issue number
+        pullRequestNumber:
+          type: integer
+          description: Related pull request number
+        commitSha:
+          type: string
+          description: Related commit SHA
+
+    # ----- Incident -----
+    Incident:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the incident
+          readOnly: true
+        incidentNumber:
+          type: string
+          description: Human-readable incident number (e.g., INC-2026-0001)
+          readOnly: true
+        title:
+          type: string
+          description: Short title/summary of the incident
+          maxLength: 255
+        description:
+          type: string
+          description: Detailed description of the incident
+        status:
+          $ref: '#/components/schemas/IncidentStatus'
+        priority:
+          $ref: '#/components/schemas/Priority'
+        severity:
+          $ref: '#/components/schemas/Severity'
+        category:
+          $ref: '#/components/schemas/IncidentCategory'
+        tags:
+          type: array
+          items:
+            type: string
+          description: Tags/labels for categorization
+        affectedSystems:
+          type: array
+          items:
+            type: string
+          description: List of affected systems/services
+        affectedUsers:
+          type: integer
+          description: Estimated number of affected users
+        owner:
+          $ref: '#/components/schemas/OwnerSummary'
+        assignees:
+          type: array
+          items:
+            $ref: '#/components/schemas/OwnerSummary'
+          description: Users assigned to work on the incident
+        rootCause:
+          type: string
+          description: Root cause analysis
+          nullable: true
+        resolution:
+          type: string
+          description: Resolution description
+          nullable: true
+        workaround:
+          type: string
+          description: Temporary workaround if available
+          nullable: true
+        githubRepo:
+          $ref: '#/components/schemas/GitHubRepo'
+          nullable: true
+        dueDate:
+          type: string
+          format: date-time
+          description: Expected resolution due date
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the incident was created
+          readOnly: true
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the incident was last updated
+          readOnly: true
+        acknowledgedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the incident was acknowledged
+          nullable: true
+          readOnly: true
+        resolvedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the incident was resolved
+          nullable: true
+          readOnly: true
+        closedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the incident was closed
+          nullable: true
+          readOnly: true
+        slaBreached:
+          type: boolean
+          description: Whether the SLA has been breached
+          readOnly: true
+        timeToAcknowledge:
+          type: integer
+          description: Time to acknowledge in minutes
+          nullable: true
+          readOnly: true
+        timeToResolve:
+          type: integer
+          description: Time to resolve in minutes
+          nullable: true
+          readOnly: true
+      required:
+        - id
+        - incidentNumber
+        - title
+        - status
+        - priority
+        - severity
+        - category
+        - createdAt
+        - updatedAt
+
+    IncidentCreate:
+      type: object
+      required:
+        - title
+        - description
+        - priority
+        - severity
+        - category
+        - ownerId
+      properties:
+        title:
+          type: string
+          description: Short title/summary of the incident
+          maxLength: 255
+        description:
+          type: string
+          description: Detailed description of the incident
+        priority:
+          $ref: '#/components/schemas/Priority'
+        severity:
+          $ref: '#/components/schemas/Severity'
+        category:
+          $ref: '#/components/schemas/IncidentCategory'
+        tags:
+          type: array
+          items:
+            type: string
+          description: Tags/labels for categorization
+        affectedSystems:
+          type: array
+          items:
+            type: string
+          description: List of affected systems/services
+        affectedUsers:
+          type: integer
+          description: Estimated number of affected users
+        ownerId:
+          type: string
+          format: uuid
+          description: ID of the owner responsible for this incident
+        assigneeIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: IDs of users to assign to this incident
+        workaround:
+          type: string
+          description: Temporary workaround if available
+        githubRepo:
+          $ref: '#/components/schemas/GitHubRepoInput'
+        dueDate:
+          type: string
+          format: date-time
+          description: Expected resolution due date
+
+    IncidentUpdate:
+      type: object
+      required:
+        - title
+        - description
+        - priority
+        - severity
+        - category
+        - ownerId
+      properties:
+        title:
+          type: string
+          description: Short title/summary of the incident
+          maxLength: 255
+        description:
+          type: string
+          description: Detailed description of the incident
+        status:
+          $ref: '#/components/schemas/IncidentStatus'
+        priority:
+          $ref: '#/components/schemas/Priority'
+        severity:
+          $ref: '#/components/schemas/Severity'
+        category:
+          $ref: '#/components/schemas/IncidentCategory'
+        tags:
+          type: array
+          items:
+            type: string
+        affectedSystems:
+          type: array
+          items:
+            type: string
+        affectedUsers:
+          type: integer
+        ownerId:
+          type: string
+          format: uuid
+        assigneeIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        rootCause:
+          type: string
+        resolution:
+          type: string
+        workaround:
+          type: string
+        githubRepo:
+          $ref: '#/components/schemas/GitHubRepoInput'
+        dueDate:
+          type: string
+          format: date-time
+
+    IncidentPatch:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        status:
+          $ref: '#/components/schemas/IncidentStatus'
+        priority:
+          $ref: '#/components/schemas/Priority'
+        severity:
+          $ref: '#/components/schemas/Severity'
+        category:
+          $ref: '#/components/schemas/IncidentCategory'
+        tags:
+          type: array
+          items:
+            type: string
+        affectedSystems:
+          type: array
+          items:
+            type: string
+        affectedUsers:
+          type: integer
+        ownerId:
+          type: string
+          format: uuid
+        assigneeIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        rootCause:
+          type: string
+        resolution:
+          type: string
+        workaround:
+          type: string
+        githubRepo:
+          $ref: '#/components/schemas/GitHubRepoInput'
+        dueDate:
+          type: string
+          format: date-time
+
+    IncidentResolution:
+      type: object
+      required:
+        - resolution
+      properties:
+        rootCause:
+          type: string
+          description: Root cause analysis
+        resolution:
+          type: string
+          description: Description of how the incident was resolved
+
+    IncidentListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Incident'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    # ----- Owner -----
+    Owner:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the owner
+          readOnly: true
+        name:
+          type: string
+          description: Full name of the owner
+          maxLength: 255
+        email:
+          type: string
+          format: email
+          description: Email address
+        phone:
+          type: string
+          description: Phone number
+          nullable: true
+        avatarUrl:
+          type: string
+          format: uri
+          description: URL to profile picture
+          nullable: true
+        team:
+          type: string
+          description: Team name
+        role:
+          $ref: '#/components/schemas/OwnerRole'
+        department:
+          type: string
+          description: Department name
+          nullable: true
+        timezone:
+          type: string
+          description: Timezone (IANA format)
+          example: "America/New_York"
+        slackHandle:
+          type: string
+          description: Slack username/handle
+          nullable: true
+        githubUsername:
+          type: string
+          description: GitHub username
+          nullable: true
+        active:
+          type: boolean
+          description: Whether the owner is active
+        onCall:
+          type: boolean
+          description: Whether the owner is currently on-call
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the owner was created
+          readOnly: true
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the owner was last updated
+          readOnly: true
+      required:
+        - id
+        - name
+        - email
+        - team
+        - role
+        - active
+        - createdAt
+        - updatedAt
+
+    OwnerSummary:
+      type: object
+      description: Condensed owner information for embedding in other entities
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        avatarUrl:
+          type: string
+          format: uri
+          nullable: true
+        team:
+          type: string
+        role:
+          $ref: '#/components/schemas/OwnerRole'
+
+    OwnerCreate:
+      type: object
+      required:
+        - name
+        - email
+        - team
+        - role
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        avatarUrl:
+          type: string
+          format: uri
+        team:
+          type: string
+        role:
+          $ref: '#/components/schemas/OwnerRole'
+        department:
+          type: string
+        timezone:
+          type: string
+          example: "America/New_York"
+        slackHandle:
+          type: string
+        githubUsername:
+          type: string
+        onCall:
+          type: boolean
+          default: false
+
+    OwnerUpdate:
+      type: object
+      required:
+        - name
+        - email
+        - team
+        - role
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        avatarUrl:
+          type: string
+          format: uri
+        team:
+          type: string
+        role:
+          $ref: '#/components/schemas/OwnerRole'
+        department:
+          type: string
+        timezone:
+          type: string
+        slackHandle:
+          type: string
+        githubUsername:
+          type: string
+        active:
+          type: boolean
+        onCall:
+          type: boolean
+
+    OwnerPatch:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        avatarUrl:
+          type: string
+          format: uri
+        team:
+          type: string
+        role:
+          $ref: '#/components/schemas/OwnerRole'
+        department:
+          type: string
+        timezone:
+          type: string
+        slackHandle:
+          type: string
+        githubUsername:
+          type: string
+        active:
+          type: boolean
+        onCall:
+          type: boolean
+
+    OwnerListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Owner'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    # ----- Comments -----
+    Comment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        incidentId:
+          type: string
+          format: uuid
+        author:
+          $ref: '#/components/schemas/OwnerSummary'
+        content:
+          type: string
+        isInternal:
+          type: boolean
+          description: Whether the comment is internal (not visible to affected users)
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+        updatedAt:
+          type: string
+          format: date-time
+          readOnly: true
+
+    CommentCreate:
+      type: object
+      required:
+        - content
+      properties:
+        content:
+          type: string
+          description: Comment content
+        isInternal:
+          type: boolean
+          default: false
+          description: Whether the comment is internal
+
+    CommentListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Comment'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    # ----- Timeline -----
+    TimelineEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        incidentId:
+          type: string
+          format: uuid
+        eventType:
+          type: string
+          enum:
+            - created
+            - status_changed
+            - priority_changed
+            - severity_changed
+            - assigned
+            - unassigned
+            - owner_changed
+            - comment_added
+            - resolved
+            - closed
+            - reopened
+            - github_linked
+            - github_updated
+            - sla_breached
+        description:
+          type: string
+        previousValue:
+          type: string
+          nullable: true
+        newValue:
+          type: string
+          nullable: true
+        actor:
+          $ref: '#/components/schemas/OwnerSummary'
+        timestamp:
+          type: string
+          format: date-time
+
+    # ----- Statistics -----
+    IncidentSummary:
+      type: object
+      properties:
+        totalIncidents:
+          type: integer
+        openIncidents:
+          type: integer
+        inProgressIncidents:
+          type: integer
+        onHoldIncidents:
+          type: integer
+        resolvedIncidents:
+          type: integer
+        closedIncidents:
+          type: integer
+        criticalIncidents:
+          type: integer
+        averageResolutionTimeMinutes:
+          type: number
+          format: float
+        averageTimeToAcknowledgeMinutes:
+          type: number
+          format: float
+        slaBreachCount:
+          type: integer
+        slaCompliancePercentage:
+          type: number
+          format: float
+
+    StatusCount:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/IncidentStatus'
+        count:
+          type: integer
+
+    PriorityCount:
+      type: object
+      properties:
+        priority:
+          $ref: '#/components/schemas/Priority'
+        count:
+          type: integer
+
+    CategoryCount:
+      type: object
+      properties:
+        category:
+          $ref: '#/components/schemas/IncidentCategory'
+        count:
+          type: integer
+
+    OwnerCount:
+      type: object
+      properties:
+        owner:
+          $ref: '#/components/schemas/OwnerSummary'
+        totalIncidents:
+          type: integer
+        openIncidents:
+          type: integer
+        resolvedIncidents:
+          type: integer
+
+    ResolutionTimeStats:
+      type: object
+      properties:
+        averageMinutes:
+          type: number
+          format: float
+        medianMinutes:
+          type: number
+          format: float
+        minMinutes:
+          type: integer
+        maxMinutes:
+          type: integer
+        percentile90Minutes:
+          type: number
+          format: float
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              period:
+                type: string
+              averageMinutes:
+                type: number
+                format: float
+              count:
+                type: integer
+
+    TrendData:
+      type: object
+      properties:
+        period:
+          type: string
+          description: Time period (e.g., "2026-02-01" or "2026-W07")
+        created:
+          type: integer
+          description: Number of incidents created
+        resolved:
+          type: integer
+          description: Number of incidents resolved
+        closed:
+          type: integer
+          description: Number of incidents closed
+
+    # ----- Common -----
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+          description: Current page number
+        pageSize:
+          type: integer
+          description: Number of items per page
+        totalItems:
+          type: integer
+          description: Total number of items
+        totalPages:
+          type: integer
+          description: Total number of pages
+        hasNextPage:
+          type: boolean
+        hasPreviousPage:
+          type: boolean
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+          description: Error code
+        message:
+          type: string
+          description: Human-readable error message
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+          description: Detailed validation errors
+        traceId:
+          type: string
+          description: Trace ID for debugging
+        timestamp:
+          type: string
+          format: date-time
+
+  # ==================== PARAMETERS ====================
+  parameters:
+    IncidentIdParam:
+      name: incidentId
+      in: path
+      required: true
+      description: Unique identifier of the incident
+      schema:
+        type: string
+        format: uuid
+
+    OwnerIdParam:
+      name: ownerId
+      in: path
+      required: true
+      description: Unique identifier of the owner
+      schema:
+        type: string
+        format: uuid
+
+    PageParam:
+      name: page
+      in: query
+      description: Page number (1-indexed)
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+
+    PageSizeParam:
+      name: pageSize
+      in: query
+      description: Number of items per page
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+    SortByParam:
+      name: sortBy
+      in: query
+      description: Field to sort by
+      schema:
+        type: string
+        enum:
+          - createdAt
+          - updatedAt
+          - priority
+          - severity
+          - status
+          - dueDate
+          - title
+        default: createdAt
+
+    SortOrderParam:
+      name: sortOrder
+      in: query
+      description: Sort order
+      schema:
+        type: string
+        enum:
+          - asc
+          - desc
+        default: desc
+
+  # ==================== RESPONSES ====================
+  responses:
+    BadRequest:
+      description: Bad request - invalid input parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Unauthorized:
+      description: Unauthorized - authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    UnprocessableEntity:
+      description: Unprocessable entity - validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  # ==================== SECURITY ====================
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT authentication token
+
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key for service-to-service authentication
+
+security:
+  - bearerAuth: []
+  - apiKeyAuth: []
