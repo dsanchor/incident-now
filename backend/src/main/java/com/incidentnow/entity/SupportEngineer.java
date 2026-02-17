@@ -1,22 +1,23 @@
 package com.incidentnow.entity;
 
-import com.incidentnow.model.OwnerRole;
+import com.incidentnow.model.IncidentCategory;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
+import java.time.LocalTime;
+import java.util.*;
 
 @Entity
-@Table(name = "owners")
+@Table(name = "support_engineers")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Owner {
+public class SupportEngineer {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -32,15 +33,6 @@ public class Owner {
 
     private String avatarUrl;
 
-    @Column(nullable = false)
-    private String team;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private OwnerRole role;
-
-    private String department;
-
     private String timezone;
 
     private String slackHandle;
@@ -50,6 +42,21 @@ public class Owner {
     @Column(nullable = false)
     @Builder.Default
     private boolean active = true;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean onCall = false;
+
+    private LocalTime workingHoursStart;
+
+    private LocalTime workingHoursEnd;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "support_engineer_categories", joinColumns = @JoinColumn(name = "support_engineer_id"))
+    @Enumerated(EnumType.STRING)
+    @Column(name = "category")
+    @Builder.Default
+    private List<IncidentCategory> categories = new ArrayList<>();
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)

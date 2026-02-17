@@ -69,7 +69,6 @@ public class OwnerService {
                 .timezone(dto.timezone())
                 .slackHandle(dto.slackHandle())
                 .githubUsername(dto.githubUsername())
-                .onCall(dto.onCall() != null ? dto.onCall() : false)
                 .active(true)
                 .build();
 
@@ -99,8 +98,6 @@ public class OwnerService {
         owner.setGithubUsername(dto.githubUsername());
         if (dto.active() != null)
             owner.setActive(dto.active());
-        if (dto.onCall() != null)
-            owner.setOnCall(dto.onCall());
 
         owner = ownerRepository.save(owner);
         log.info("Owner updated: {}", ownerId);
@@ -138,8 +135,6 @@ public class OwnerService {
             owner.setGithubUsername(dto.githubUsername());
         if (dto.active() != null)
             owner.setActive(dto.active());
-        if (dto.onCall() != null)
-            owner.setOnCall(dto.onCall());
 
         owner = ownerRepository.save(owner);
         log.info("Owner patched: {}", ownerId);

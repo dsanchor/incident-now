@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Incident Management API
   description: |
-    REST API for managing IT incidents, owners, and optional GitHub repository integration.
+    REST API for managing IT incidents, owners, support engineers, and optional GitHub repository integration.
     Provides full CRUD operations along with filtering, searching, and statistics endpoints.
   version: 1.0.0
   contact:
@@ -23,6 +23,8 @@ tags:
     description: Operations for managing IT incidents
   - name: Owners
     description: Operations for managing incident owners
+  - name: Support Engineers
+    description: Operations for managing support engineers assigned to incidents
   - name: Statistics
     description: Incident statistics and metrics
 
@@ -384,8 +386,8 @@ paths:
     post:
       tags:
         - Incidents
-      summary: Assign users to an incident
-      description: Assign one or more users to work on an incident
+      summary: Assign support engineers to an incident
+      description: Assign one or more support engineers to work on an incident
       operationId: assignIncident
       parameters:
         - $ref: '#/components/parameters/IncidentIdParam'
@@ -403,7 +405,7 @@ paths:
                   items:
                     type: string
                     format: uuid
-                  description: List of owner IDs to assign
+                  description: List of support engineer IDs to assign
       responses:
         '200':
           description: Assignees updated successfully
@@ -732,15 +734,229 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  /owners/{ownerId}/assigned-incidents:
+  # ==================== SUPPORT ENGINEERS ====================
+  /support-engineers:
     get:
       tags:
-        - Owners
-      summary: Get incidents assigned to user
-      description: Retrieve all incidents where this owner is assigned
-      operationId: getOwnerAssignedIncidents
+        - Support Engineers
+      summary: List all support engineers
+      description: Retrieve a paginated list of support engineers with optional filtering
+      operationId: listSupportEngineers
       parameters:
-        - $ref: '#/components/parameters/OwnerIdParam'
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: active
+          in: query
+          description: Filter by active status
+          schema:
+            type: boolean
+        - name: search
+          in: query
+          description: Search in name and email
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupportEngineerListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags:
+        - Support Engineers
+      summary: Create a new support engineer
+      description: Create a new support engineer
+      operationId: createSupportEngineer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SupportEngineerCreate'
+      responses:
+        '201':
+          description: Support engineer created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupportEngineer'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Support engineer with this email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /support-engineers/{supportEngineerId}:
+    get:
+      tags:
+        - Support Engineers
+      summary: Get support engineer by ID
+      description: Retrieve a specific support engineer by their ID
+      operationId: getSupportEngineerById
+      parameters:
+        - $ref: '#/components/parameters/SupportEngineerIdParam'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupportEngineer'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    put:
+      tags:
+        - Support Engineers
+      summary: Update a support engineer
+      description: Update an existing support engineer (full replacement)
+      operationId: updateSupportEngineer
+      parameters:
+        - $ref: '#/components/parameters/SupportEngineerIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SupportEngineerUpdate'
+      responses:
+        '200':
+          description: Support engineer updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupportEngineer'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Support engineer with this email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    patch:
+      tags:
+        - Support Engineers
+      summary: Partially update a support engineer
+      description: Update specific fields of an existing support engineer
+      operationId: patchSupportEngineer
+      parameters:
+        - $ref: '#/components/parameters/SupportEngineerIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SupportEngineerPatch'
+      responses:
+        '200':
+          description: Support engineer updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupportEngineer'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Support engineer with this email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      tags:
+        - Support Engineers
+      summary: Delete a support engineer
+      description: Delete a support engineer by their ID (soft delete - sets active to false)
+      operationId: deleteSupportEngineer
+      parameters:
+        - $ref: '#/components/parameters/SupportEngineerIdParam'
+      responses:
+        '204':
+          description: Support engineer deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /support-engineers/by-category/{category}:
+    get:
+      tags:
+        - Support Engineers
+      summary: Get support engineers by category
+      description: Retrieve active support engineers that handle a specific incident category
+      operationId: getSupportEngineersByCategory
+      parameters:
+        - name: category
+          in: path
+          required: true
+          description: Incident category to filter by
+          schema:
+            $ref: '#/components/schemas/IncidentCategory'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SupportEngineer'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /support-engineers/{supportEngineerId}/assigned-incidents:
+    get:
+      tags:
+        - Support Engineers
+      summary: Get incidents assigned to support engineer
+      description: Retrieve all incidents where this support engineer is assigned
+      operationId: getSupportEngineerAssignedIncidents
+      parameters:
+        - $ref: '#/components/parameters/SupportEngineerIdParam'
         - $ref: '#/components/parameters/PageParam'
         - $ref: '#/components/parameters/PageSizeParam'
         - name: status
@@ -1137,8 +1353,8 @@ components:
         assignees:
           type: array
           items:
-            $ref: '#/components/schemas/OwnerSummary'
-          description: Users assigned to work on the incident
+            $ref: '#/components/schemas/SupportEngineerSummary'
+          description: Support engineers assigned to work on the incident
         rootCause:
           type: string
           description: Root cause analysis
@@ -1257,7 +1473,7 @@ components:
           items:
             type: string
             format: uuid
-          description: IDs of users to assign to this incident
+          description: IDs of support engineers to assign to this incident
         workaround:
           type: string
           description: Temporary workaround if available
@@ -1311,6 +1527,7 @@ components:
           items:
             type: string
             format: uuid
+          description: IDs of support engineers to assign to this incident
         rootCause:
           type: string
         resolution:
@@ -1357,6 +1574,7 @@ components:
           items:
             type: string
             format: uuid
+          description: IDs of support engineers to assign to this incident
         rootCause:
           type: string
         resolution:
@@ -1441,9 +1659,6 @@ components:
         active:
           type: boolean
           description: Whether the owner is active
-        onCall:
-          type: boolean
-          description: Whether the owner is currently on-call
         createdAt:
           type: string
           format: date-time
@@ -1517,9 +1732,6 @@ components:
           type: string
         githubUsername:
           type: string
-        onCall:
-          type: boolean
-          default: false
 
     OwnerUpdate:
       type: object
@@ -1554,8 +1766,6 @@ components:
           type: string
         active:
           type: boolean
-        onCall:
-          type: boolean
 
     OwnerPatch:
       type: object
@@ -1585,8 +1795,6 @@ components:
           type: string
         active:
           type: boolean
-        onCall:
-          type: boolean
 
     OwnerListResponse:
       type: object
@@ -1595,6 +1803,233 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Owner'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    # ----- Support Engineer -----
+    SupportEngineer:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the support engineer
+          readOnly: true
+        name:
+          type: string
+          description: Full name of the support engineer
+          maxLength: 255
+        email:
+          type: string
+          format: email
+          description: Email address
+        phone:
+          type: string
+          description: Phone number
+          nullable: true
+        avatarUrl:
+          type: string
+          format: uri
+          description: URL to profile picture
+          nullable: true
+        timezone:
+          type: string
+          description: Timezone (IANA format)
+          example: "America/New_York"
+          nullable: true
+        slackHandle:
+          type: string
+          description: Slack username/handle
+          nullable: true
+        githubUsername:
+          type: string
+          description: GitHub username
+          nullable: true
+        active:
+          type: boolean
+          description: Whether the support engineer is active
+        onCall:
+          type: boolean
+          description: Whether the support engineer is currently on-call
+        workingHoursStart:
+          type: string
+          format: time
+          description: Start of working hours (HH:mm)
+          example: "08:00"
+          nullable: true
+        workingHoursEnd:
+          type: string
+          format: time
+          description: End of working hours (HH:mm)
+          example: "17:00"
+          nullable: true
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/IncidentCategory'
+          description: Incident categories this engineer can handle
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the support engineer was created
+          readOnly: true
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the support engineer was last updated
+          readOnly: true
+      required:
+        - id
+        - name
+        - email
+        - active
+        - onCall
+        - createdAt
+        - updatedAt
+
+    SupportEngineerSummary:
+      type: object
+      description: Condensed support engineer information for embedding in other entities
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        avatarUrl:
+          type: string
+          format: uri
+          nullable: true
+        onCall:
+          type: boolean
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/IncidentCategory'
+
+    SupportEngineerCreate:
+      type: object
+      required:
+        - name
+        - email
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        avatarUrl:
+          type: string
+          format: uri
+        timezone:
+          type: string
+          example: "America/New_York"
+        slackHandle:
+          type: string
+        githubUsername:
+          type: string
+        onCall:
+          type: boolean
+          default: false
+        workingHoursStart:
+          type: string
+          format: time
+          example: "08:00"
+        workingHoursEnd:
+          type: string
+          format: time
+          example: "17:00"
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/IncidentCategory'
+
+    SupportEngineerUpdate:
+      type: object
+      required:
+        - name
+        - email
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        avatarUrl:
+          type: string
+          format: uri
+        timezone:
+          type: string
+        slackHandle:
+          type: string
+        githubUsername:
+          type: string
+        active:
+          type: boolean
+        onCall:
+          type: boolean
+        workingHoursStart:
+          type: string
+          format: time
+        workingHoursEnd:
+          type: string
+          format: time
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/IncidentCategory'
+
+    SupportEngineerPatch:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        avatarUrl:
+          type: string
+          format: uri
+        timezone:
+          type: string
+        slackHandle:
+          type: string
+        githubUsername:
+          type: string
+        active:
+          type: boolean
+        onCall:
+          type: boolean
+        workingHoursStart:
+          type: string
+          format: time
+        workingHoursEnd:
+          type: string
+          format: time
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/IncidentCategory'
+
+    SupportEngineerListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/SupportEngineer'
         pagination:
           $ref: '#/components/schemas/Pagination'
 
@@ -1863,6 +2298,15 @@ components:
       in: path
       required: true
       description: Unique identifier of the owner
+      schema:
+        type: string
+        format: uuid
+
+    SupportEngineerIdParam:
+      name: supportEngineerId
+      in: path
+      required: true
+      description: Unique identifier of the support engineer
       schema:
         type: string
         format: uuid

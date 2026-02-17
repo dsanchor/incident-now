@@ -1,0 +1,63 @@
+{
+    "name": "IncidentNow Dev Environment",
+    "image": "mcr.microsoft.com/devcontainers/java:21-bookworm",
+    "features": {
+        "ghcr.io/devcontainers/features/node:1": {
+            "version": "22",
+            "installYarnUsingApt": false
+        },
+        "ghcr.io/devcontainers/features/python:1": {
+            "version": "3.11"
+        },
+        "ghcr.io/devcontainers/features/azure-cli:1": {
+            "version": "latest"
+        },
+        "ghcr.io/devcontainers/features/docker-in-docker:2": {
+            "version": "latest",
+            "dockerDashComposeVersion": "v2"
+        }
+    },
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "java.configuration.runtimes": [
+                    {
+                        "name": "JavaSE-21",
+                        "default": true
+                    }
+                ],
+                "editor.formatOnSave": true
+            },
+            "extensions": [
+                "vscjava.vscode-java-pack",
+                "vmware.vscode-spring-boot",
+                "Angular.ng-template",
+                "ms-azuretools.vscode-docker",
+                "ms-python.python",
+                "redhat.vscode-yaml",
+                "dbaeumer.vscode-eslint",
+                "esbenp.prettier-vscode",
+                "GitHub.copilot",
+                "GitHub.copilot-chat",
+                "ms-vscode.azurecli",
+                "TeamsDevApp.vscode-ai-foundry"
+            ]
+        }
+    },
+    "postCreateCommand": "cd backend && mvn dependency:go-offline && cd ../frontend && npm install && npm install -g @angular/cli",
+    "forwardPorts": [
+        8080,
+        4200
+    ],
+    "portsAttributes": {
+        "8080": {
+            "label": "Backend API",
+            "onAutoForward": "notify"
+        },
+        "4200": {
+            "label": "Angular Frontend",
+            "onAutoForward": "openBrowser"
+        }
+    },
+    "remoteUser": "vscode"
+}

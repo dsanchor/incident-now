@@ -29,12 +29,14 @@ import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { COMMA, ENTER } from '@angular/cdk/keycodes';
 import { IncidentService } from '../../../core/services/incident.service';
 import { OwnerService } from '../../../core/services/owner.service';
+import { SupportEngineerService } from '../../../core/services/support-engineer.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import {
     Incident,
     IncidentCreate,
     IncidentUpdate,
     Owner,
+    SupportEngineer,
     PRIORITIES,
     SEVERITIES,
     CATEGORIES,
@@ -136,12 +138,13 @@ import {
               </mat-form-field>
 
               <mat-form-field appearance="outline" class="full-width">
-                <mat-label>Assignees</mat-label>
+                <mat-label>Assignees (Support Engineers)</mat-label>
                 <mat-select formControlName="assigneeIds" multiple>
-                  @for (owner of owners(); track owner.id) {
-                    <mat-option [value]="owner.id">{{ owner.name }}</mat-option>
+                  @for (se of supportEngineers(); track se.id) {
+                    <mat-option [value]="se.id">{{ se.name }}</mat-option>
                   }
                 </mat-select>
+                <mat-hint>Only engineers matching the selected category are shown</mat-hint>
               </mat-form-field>
             </mat-card-content>
           </mat-card>
@@ -310,12 +313,14 @@ export class IncidentFormComponent implements OnInit {
     private readonly router = inject(Router);
     private readonly incidentService = inject(IncidentService);
     private readonly ownerService = inject(OwnerService);
+    private readonly supportEngineerService = inject(SupportEngineerService);
     private readonly notification = inject(NotificationService);
 
     readonly isEdit = signal(false);
     readonly loading = signal(false);
     readonly saving = signal(false);
     readonly owners = signal<Owner[]>([]);
+    readonly supportEngineers = signal<SupportEngineer[]>([]);
 
     readonly priorities = PRIORITIES;
     readonly severities = SEVERITIES;
@@ -347,6 +352,16 @@ export class IncidentFormComponent implements OnInit {
             this.owners.set(res.data);
         });
 
+        // Load support engineers by category when category changes
+        this.loadSupportEngineersByCategory(this.form.get('category')!.value as any);
+        this.form.get('category')!.valueChanges.subscribe((category) => {
+            if (category) {
+                this.loadSupportEngineersByCategory(category as any);
+                // Clear assignees when category changes as they may no longer be valid
+                this.form.get('assigneeIds')!.setValue([]);
+            }
+        });
+
         const id = this.route.snapshot.paramMap.get('id');
         if (id) {
             this.isEdit.set(true);
@@ -354,6 +369,8 @@ export class IncidentFormComponent implements OnInit {
             this.loading.set(true);
             this.incidentService.getIncident(id).subscribe({
                 next: (incident) => {
+                    // Load support engineers for the incident's category before patching
+                    this.loadSupportEngineersByCategory(incident.category);
                     this.form.patchValue({
                         title: incident.title,
                         description: incident.description,
@@ -468,5 +485,12 @@ export class IncidentFormComponent implements OnInit {
                 },
             });
         }
+    }
+
+    private loadSupportEngineersByCategory(category: string): void {
+        this.supportEngineerService.getByCategory(category as any).subscribe({
+            next: (engineers) => this.supportEngineers.set(engineers),
+            error: () => this.supportEngineers.set([]),
+        });
     }
 }

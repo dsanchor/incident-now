@@ -21,6 +21,5 @@ public record OwnerCreateDTO(
         String department,
         String timezone,
         String slackHandle,
-        String githubUsername,
-        Boolean onCall) {
+        String githubUsername) {
 }

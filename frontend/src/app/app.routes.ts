@@ -49,6 +49,13 @@ export const routes: Routes = [
                         './features/owners/owner-list/owner-list.component'
                     ).then((m) => m.OwnerListComponent),
             },
+            {
+                path: 'support-engineers',
+                loadComponent: () =>
+                    import(
+                        './features/support-engineers/support-engineer-list/support-engineer-list.component'
+                    ).then((m) => m.SupportEngineerListComponent),
+            },
         ],
     },
     { path: '**', redirectTo: '' },

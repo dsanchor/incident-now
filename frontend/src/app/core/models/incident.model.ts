@@ -1,5 +1,6 @@
 import { IncidentStatus, Priority, Severity, IncidentCategory } from './enums';
 import { OwnerSummary } from './owner.model';
+import { SupportEngineerSummary } from './support-engineer.model';
 
 export interface GitHubRepo {
     repoOwner: string;
@@ -35,7 +36,7 @@ export interface Incident {
     affectedSystems: string[];
     affectedUsers: number | null;
     owner: OwnerSummary;
-    assignees: OwnerSummary[];
+    assignees: SupportEngineerSummary[];
     rootCause: string | null;
     resolution: string | null;
     workaround: string | null;

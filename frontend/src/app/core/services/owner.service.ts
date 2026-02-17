@@ -3,7 +3,6 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { Owner, OwnerCreate, OwnerUpdate, PagedResponse } from '../models';
-import { Incident } from '../models';
 
 @Injectable({ providedIn: 'root' })
 export class OwnerService {
@@ -48,20 +47,5 @@ export class OwnerService {
 
     deleteOwner(id: string): Observable<void> {
         return this.http.delete<void>(`${this.baseUrl}/${id}`);
-    }
-
-    getOwnerIncidents(
-        id: string,
-        params?: { page?: number; pageSize?: number; status?: string }
-    ): Observable<PagedResponse<Incident>> {
-        let httpParams = new HttpParams();
-        if (params) {
-            if (params.page != null) httpParams = httpParams.set('page', params.page);
-            if (params.pageSize != null) httpParams = httpParams.set('pageSize', params.pageSize);
-            if (params.status) httpParams = httpParams.set('status', params.status);
-        }
-        return this.http.get<PagedResponse<Incident>>(`${this.baseUrl}/${id}/incidents`, {
-            params: httpParams,
-        });
     }
 }

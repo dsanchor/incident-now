@@ -1,44 +1,46 @@
-import { OwnerRole } from './enums';
+import { IncidentCategory } from './enums';
 
-export interface OwnerSummary {
+export interface SupportEngineerSummary {
     id: string;
     name: string;
     email: string;
     avatarUrl: string | null;
-    team: string;
-    role: OwnerRole;
+    onCall: boolean;
+    categories: IncidentCategory[];
 }
 
-export interface Owner {
+export interface SupportEngineer {
     id: string;
     name: string;
     email: string;
     phone: string | null;
     avatarUrl: string | null;
-    team: string;
-    role: OwnerRole;
-    department: string | null;
     timezone: string | null;
     slackHandle: string | null;
     githubUsername: string | null;
     active: boolean;
+    onCall: boolean;
+    workingHoursStart: string | null;
+    workingHoursEnd: string | null;
+    categories: IncidentCategory[];
     createdAt: string;
     updatedAt: string;
 }
 
-export interface OwnerCreate {
+export interface SupportEngineerCreate {
     name: string;
     email: string;
     phone?: string;
     avatarUrl?: string;
-    team: string;
-    role: OwnerRole;
-    department?: string;
     timezone?: string;
     slackHandle?: string;
     githubUsername?: string;
+    onCall?: boolean;
+    workingHoursStart?: string;
+    workingHoursEnd?: string;
+    categories?: IncidentCategory[];
 }
 
-export interface OwnerUpdate extends OwnerCreate {
+export interface SupportEngineerUpdate extends SupportEngineerCreate {
     active?: boolean;
 }

@@ -19,7 +19,7 @@ public record IncidentResponseDTO(
         List<String> affectedSystems,
         Integer affectedUsers,
         OwnerSummaryDTO owner,
-        List<OwnerSummaryDTO> assignees,
+        List<SupportEngineerSummaryDTO> assignees,
         String rootCause,
         String resolution,
         String workaround,

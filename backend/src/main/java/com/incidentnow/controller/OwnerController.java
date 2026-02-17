@@ -97,17 +97,4 @@ public class OwnerController {
         log.info("GET /owners/{}/incidents - returned {} incidents", ownerId, response.data().size());
         return ResponseEntity.ok(response);
     }
-
-    @GetMapping("/{ownerId}/assigned-incidents")
-    public ResponseEntity<PagedResponseDTO<IncidentResponseDTO>> getOwnerAssignedIncidents(
-            @PathVariable UUID ownerId,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "20") int pageSize,
-            @RequestParam(required = false) IncidentStatus status) {
-        log.info("GET /owners/{}/assigned-incidents - page: {}, status: {}", ownerId, page, status);
-        PagedResponseDTO<IncidentResponseDTO> response = incidentService.getOwnerAssignedIncidents(ownerId, page,
-                pageSize, status);
-        log.info("GET /owners/{}/assigned-incidents - returned {} incidents", ownerId, response.data().size());
-        return ResponseEntity.ok(response);
-    }
 }

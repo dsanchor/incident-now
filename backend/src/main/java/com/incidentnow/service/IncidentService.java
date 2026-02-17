@@ -30,6 +30,7 @@ public class IncidentService {
 
     private final IncidentRepository incidentRepository;
     private final OwnerRepository ownerRepository;
+    private final SupportEngineerRepository supportEngineerRepository;
     private final CommentRepository commentRepository;
     private final TimelineEventRepository timelineEventRepository;
     private final DtoMapper mapper;
@@ -94,13 +95,7 @@ public class IncidentService {
         Owner owner = ownerRepository.findById(dto.ownerId())
                 .orElseThrow(() -> new ResourceNotFoundException("Owner", dto.ownerId()));
 
-        Set<Owner> assignees = new HashSet<>();
-        if (dto.assigneeIds() != null) {
-            for (UUID assigneeId : dto.assigneeIds()) {
-                assignees.add(ownerRepository.findById(assigneeId)
-                        .orElseThrow(() -> new ResourceNotFoundException("Assignee", assigneeId)));
-            }
-        }
+        Set<SupportEngineer> assignees = resolveAndValidateAssignees(dto.assigneeIds(), dto.category());
 
         Incident incident = Incident.builder()
                 .incidentNumber(generateIncidentNumber())
@@ -137,13 +132,7 @@ public class IncidentService {
         Owner owner = ownerRepository.findById(dto.ownerId())
                 .orElseThrow(() -> new ResourceNotFoundException("Owner", dto.ownerId()));
 
-        Set<Owner> assignees = new HashSet<>();
-        if (dto.assigneeIds() != null) {
-            for (UUID assigneeId : dto.assigneeIds()) {
-                assignees.add(ownerRepository.findById(assigneeId)
-                        .orElseThrow(() -> new ResourceNotFoundException("Assignee", assigneeId)));
-            }
-        }
+        Set<SupportEngineer> assignees = resolveAndValidateAssignees(dto.assigneeIds(), dto.category());
 
         // Track changes for timeline
         if (dto.status() != null && dto.status() != incident.getStatus()) {
@@ -222,11 +211,8 @@ public class IncidentService {
             }
         }
         if (dto.assigneeIds() != null) {
-            Set<Owner> assignees = new HashSet<>();
-            for (UUID assigneeId : dto.assigneeIds()) {
-                assignees.add(ownerRepository.findById(assigneeId)
-                        .orElseThrow(() -> new ResourceNotFoundException("Assignee", assigneeId)));
-            }
+            IncidentCategory effectiveCategory = dto.category() != null ? dto.category() : incident.getCategory();
+            Set<SupportEngineer> assignees = resolveAndValidateAssignees(dto.assigneeIds(), effectiveCategory);
             incident.setAssignees(assignees);
         }
         if (dto.rootCause() != null)
@@ -345,12 +331,7 @@ public class IncidentService {
         log.info("Assigning incident: {} to {} users", incidentId, assigneeIds.size());
         Incident incident = findIncidentOrThrow(incidentId);
 
-        Set<Owner> assignees = new HashSet<>();
-        for (UUID assigneeId : assigneeIds) {
-            Owner assignee = ownerRepository.findById(assigneeId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Assignee", assigneeId));
-            assignees.add(assignee);
-        }
+        Set<SupportEngineer> assignees = resolveAndValidateAssignees(assigneeIds, incident.getCategory());
 
         incident.setAssignees(assignees);
 
@@ -364,7 +345,8 @@ public class IncidentService {
             }
         }
 
-        String assigneeNames = assignees.stream().map(Owner::getName).reduce((a, b) -> a + ", " + b).orElse("");
+        String assigneeNames = assignees.stream().map(SupportEngineer::getName).reduce((a, b) -> a + ", " + b)
+                .orElse("");
         createTimelineEvent(incident, TimelineEventType.ASSIGNED,
                 "Assigned to: " + assigneeNames, null, assigneeNames, incident.getOwner());
 
@@ -443,16 +425,17 @@ public class IncidentService {
     }
 
     @Transactional(readOnly = true)
-    public PagedResponseDTO<IncidentResponseDTO> getOwnerAssignedIncidents(UUID ownerId, int page, int pageSize,
+    public PagedResponseDTO<IncidentResponseDTO> getSupportEngineerAssignedIncidents(UUID supportEngineerId, int page,
+            int pageSize,
             IncidentStatus status) {
-        log.debug("Getting assigned incidents for owner: {}", ownerId);
-        ownerRepository.findById(ownerId)
-                .orElseThrow(() -> new ResourceNotFoundException("Owner", ownerId));
+        log.debug("Getting assigned incidents for support engineer: {}", supportEngineerId);
+        supportEngineerRepository.findById(supportEngineerId)
+                .orElseThrow(() -> new ResourceNotFoundException("SupportEngineer", supportEngineerId));
 
         Pageable pageable = PageRequest.of(page - 1, pageSize, Sort.by(Sort.Direction.DESC, "createdAt"));
         Page<Incident> result = status != null
-                ? incidentRepository.findByAssigneeIdAndStatus(ownerId, status, pageable)
-                : incidentRepository.findByAssigneeId(ownerId, pageable);
+                ? incidentRepository.findByAssigneeIdAndStatus(supportEngineerId, status, pageable)
+                : incidentRepository.findByAssigneeId(supportEngineerId, pageable);
 
         return new PagedResponseDTO<>(
                 result.getContent().stream().map(mapper::toIncidentResponse).toList(),
@@ -464,6 +447,23 @@ public class IncidentService {
     private Incident findIncidentOrThrow(UUID incidentId) {
         return incidentRepository.findById(incidentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Incident", incidentId));
+    }
+
+    private Set<SupportEngineer> resolveAndValidateAssignees(List<UUID> assigneeIds, IncidentCategory category) {
+        Set<SupportEngineer> assignees = new HashSet<>();
+        if (assigneeIds != null) {
+            for (UUID assigneeId : assigneeIds) {
+                SupportEngineer se = supportEngineerRepository.findById(assigneeId)
+                        .orElseThrow(() -> new ResourceNotFoundException("SupportEngineer", assigneeId));
+                if (!se.getCategories().contains(category)) {
+                    throw new ConflictException(
+                            "Support engineer '" + se.getName() + "' cannot be assigned to incidents of category '"
+                                    + category.getValue() + "'. Their categories: " + se.getCategories());
+                }
+                assignees.add(se);
+            }
+        }
+        return assignees;
     }
 
     private void createTimelineEvent(Incident incident, TimelineEventType eventType,

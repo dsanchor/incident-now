@@ -67,9 +67,9 @@ public class Incident {
     private Owner owner;
 
     @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(name = "incident_assignees", joinColumns = @JoinColumn(name = "incident_id"), inverseJoinColumns = @JoinColumn(name = "owner_id"))
+    @JoinTable(name = "incident_assignees", joinColumns = @JoinColumn(name = "incident_id"), inverseJoinColumns = @JoinColumn(name = "support_engineer_id"))
     @Builder.Default
-    private Set<Owner> assignees = new HashSet<>();
+    private Set<SupportEngineer> assignees = new HashSet<>();
 
     @Column(columnDefinition = "TEXT")
     private String rootCause;

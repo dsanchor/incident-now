@@ -23,13 +23,13 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatSelectModule } from '@angular/material/select';
 import { forkJoin } from 'rxjs';
 import { IncidentService } from '../../../core/services/incident.service';
-import { OwnerService } from '../../../core/services/owner.service';
+import { SupportEngineerService } from '../../../core/services/support-engineer.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import {
     Incident,
     Comment,
     TimelineEvent,
-    Owner,
+    SupportEngineer,
     IncidentStatus,
 } from '../../../core/models';
 import { StatusChipComponent } from '../../../shared/components/status-chip.component';
@@ -604,7 +604,7 @@ export class IncidentDetailComponent implements OnInit {
     private readonly route = inject(ActivatedRoute);
     private readonly router = inject(Router);
     private readonly incidentService = inject(IncidentService);
-    private readonly ownerService = inject(OwnerService);
+    private readonly supportEngineerService = inject(SupportEngineerService);
     private readonly notification = inject(NotificationService);
     private readonly dialog = inject(MatDialog);
 
@@ -612,7 +612,6 @@ export class IncidentDetailComponent implements OnInit {
     readonly incident = signal<Incident | null>(null);
     readonly comments = signal<Comment[]>([]);
     readonly timeline = signal<TimelineEvent[]>([]);
-    readonly owners = signal<Owner[]>([]);
 
     newComment = '';
     newCommentInternal = false;
@@ -719,11 +718,12 @@ export class IncidentDetailComponent implements OnInit {
     }
 
     openAssignDialog(): void {
-        this.ownerService.getOwners({ pageSize: 100, active: true }).subscribe((response) => {
+        const category = this.incident()!.category;
+        this.supportEngineerService.getByCategory(category).subscribe((engineers) => {
             const dialogRef = this.dialog.open(AssignDialogComponent, {
                 width: '500px',
                 data: {
-                    owners: response.data,
+                    supportEngineers: engineers,
                     currentAssignees: this.incident()!.assignees.map((a) => a.id),
                 },
             });

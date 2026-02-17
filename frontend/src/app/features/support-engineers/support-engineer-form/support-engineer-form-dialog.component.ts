@@ -8,12 +8,12 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatButtonModule } from '@angular/material/button';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { OwnerService } from '../../../core/services/owner.service';
+import { SupportEngineerService } from '../../../core/services/support-engineer.service';
 import { NotificationService } from '../../../core/services/notification.service';
-import { Owner, OWNER_ROLES } from '../../../core/models';
+import { SupportEngineer, CATEGORIES } from '../../../core/models';
 
 @Component({
-    selector: 'app-owner-form-dialog',
+    selector: 'app-support-engineer-form-dialog',
     standalone: true,
     imports: [
         CommonModule,
@@ -28,7 +28,7 @@ import { Owner, OWNER_ROLES } from '../../../core/models';
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
-    <h2 mat-dialog-title>{{ isEdit ? 'Edit Owner' : 'New Owner' }}</h2>
+    <h2 mat-dialog-title>{{ isEdit ? 'Edit Support Engineer' : 'New Support Engineer' }}</h2>
     <mat-dialog-content>
       <form [formGroup]="form" class="form-grid">
         <mat-form-field appearance="outline">
@@ -49,27 +49,6 @@ import { Owner, OWNER_ROLES } from '../../../core/models';
         </mat-form-field>
 
         <mat-form-field appearance="outline">
-          <mat-label>Team</mat-label>
-          <input matInput formControlName="team" />
-          <mat-error>Team is required</mat-error>
-        </mat-form-field>
-
-        <mat-form-field appearance="outline">
-          <mat-label>Role</mat-label>
-          <mat-select formControlName="role">
-            @for (role of roles; track role.value) {
-              <mat-option [value]="role.value">{{ role.label }}</mat-option>
-            }
-          </mat-select>
-          <mat-error>Role is required</mat-error>
-        </mat-form-field>
-
-        <mat-form-field appearance="outline">
-          <mat-label>Department</mat-label>
-          <input matInput formControlName="department" />
-        </mat-form-field>
-
-        <mat-form-field appearance="outline">
           <mat-label>Timezone</mat-label>
           <input matInput formControlName="timezone" placeholder="e.g. Europe/Madrid" />
         </mat-form-field>
@@ -84,7 +63,28 @@ import { Owner, OWNER_ROLES } from '../../../core/models';
           <input matInput formControlName="githubUsername" />
         </mat-form-field>
 
+        <mat-form-field appearance="outline">
+          <mat-label>Working Hours Start</mat-label>
+          <input matInput formControlName="workingHoursStart" type="time" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Working Hours End</mat-label>
+          <input matInput formControlName="workingHoursEnd" type="time" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-span">
+          <mat-label>Categories</mat-label>
+          <mat-select formControlName="categories" multiple>
+            @for (cat of categoryOptions; track cat.value) {
+              <mat-option [value]="cat.value">{{ cat.label }}</mat-option>
+            }
+          </mat-select>
+          <mat-hint>Select incident categories this engineer can handle</mat-hint>
+        </mat-form-field>
+
         <div class="toggles">
+          <mat-slide-toggle formControlName="onCall">On Call</mat-slide-toggle>
           @if (isEdit) {
             <mat-slide-toggle formControlName="active">Active</mat-slide-toggle>
           }
@@ -112,11 +112,15 @@ import { Owner, OWNER_ROLES } from '../../../core/models';
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 0 16px;
-      min-width: 460px;
+      min-width: 520px;
     }
 
     .form-grid mat-form-field {
       width: 100%;
+    }
+
+    .full-span {
+      grid-column: 1 / -1;
     }
 
     .toggles {
@@ -127,32 +131,33 @@ import { Owner, OWNER_ROLES } from '../../../core/models';
     }
   `,
 })
-export class OwnerFormDialogComponent implements OnInit {
-    private readonly ownerService = inject(OwnerService);
+export class SupportEngineerFormDialogComponent implements OnInit {
+    private readonly seService = inject(SupportEngineerService);
     private readonly notification = inject(NotificationService);
     private readonly fb = inject(FormBuilder);
-    readonly data = inject<{ owner: Owner | null }>(MAT_DIALOG_DATA);
-    readonly dialogRef = inject(MatDialogRef<OwnerFormDialogComponent>);
+    readonly data = inject<{ engineer: SupportEngineer | null }>(MAT_DIALOG_DATA);
+    readonly dialogRef = inject(MatDialogRef<SupportEngineerFormDialogComponent>);
 
-    readonly roles = OWNER_ROLES;
-    readonly isEdit = !!this.data.owner;
+    readonly categoryOptions = CATEGORIES;
+    readonly isEdit = !!this.data.engineer;
     readonly saving = signal(false);
 
     form!: FormGroup;
 
     ngOnInit(): void {
-        const o = this.data.owner;
+        const se = this.data.engineer;
         this.form = this.fb.group({
-            name: [o?.name || '', Validators.required],
-            email: [o?.email || '', [Validators.required, Validators.email]],
-            phone: [o?.phone || ''],
-            team: [o?.team || '', Validators.required],
-            role: [o?.role || '', Validators.required],
-            department: [o?.department || ''],
-            timezone: [o?.timezone || ''],
-            slackHandle: [o?.slackHandle || ''],
-            githubUsername: [o?.githubUsername || ''],
-            active: [o?.active ?? true],
+            name: [se?.name || '', Validators.required],
+            email: [se?.email || '', [Validators.required, Validators.email]],
+            phone: [se?.phone || ''],
+            timezone: [se?.timezone || ''],
+            slackHandle: [se?.slackHandle || ''],
+            githubUsername: [se?.githubUsername || ''],
+            onCall: [se?.onCall ?? false],
+            workingHoursStart: [se?.workingHoursStart || ''],
+            workingHoursEnd: [se?.workingHoursEnd || ''],
+            categories: [se?.categories || []],
+            active: [se?.active ?? true],
         });
     }
 
@@ -161,17 +166,23 @@ export class OwnerFormDialogComponent implements OnInit {
         this.saving.set(true);
         const value = this.form.value;
 
+        // Clean up empty time values
+        if (!value.workingHoursStart) delete value.workingHoursStart;
+        if (!value.workingHoursEnd) delete value.workingHoursEnd;
+
         const op = this.isEdit
-            ? this.ownerService.updateOwner(this.data.owner!.id, value)
-            : this.ownerService.createOwner(value);
+            ? this.seService.updateSupportEngineer(this.data.engineer!.id, value)
+            : this.seService.createSupportEngineer(value);
 
         op.subscribe({
             next: () => {
-                this.notification.success(this.isEdit ? 'Owner updated' : 'Owner created');
+                this.notification.success(
+                    this.isEdit ? 'Support engineer updated' : 'Support engineer created'
+                );
                 this.dialogRef.close(true);
             },
             error: () => {
-                this.notification.error('Failed to save owner');
+                this.notification.error('Failed to save support engineer');
                 this.saving.set(false);
             },
         });

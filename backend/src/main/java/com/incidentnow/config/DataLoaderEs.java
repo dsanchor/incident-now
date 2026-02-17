@@ -11,6 +11,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.*;
 
 @Component
@@ -21,6 +22,7 @@ public class DataLoaderEs implements CommandLineRunner {
     private static final Logger log = LoggerFactory.getLogger(DataLoaderEs.class);
 
     private final OwnerRepository ownerRepository;
+    private final SupportEngineerRepository supportEngineerRepository;
     private final IncidentRepository incidentRepository;
     private final CommentRepository commentRepository;
     private final TimelineEventRepository timelineEventRepository;
@@ -46,7 +48,6 @@ public class DataLoaderEs implements CommandLineRunner {
                 .slackHandle("@ana.g")
                 .githubUsername("anagarcia")
                 .active(true)
-                .onCall(true)
                 .build());
 
         Owner carlos = ownerRepository.save(Owner.builder()
@@ -60,7 +61,6 @@ public class DataLoaderEs implements CommandLineRunner {
                 .slackHandle("@carlos.l")
                 .githubUsername("carloslopez")
                 .active(true)
-                .onCall(false)
                 .build());
 
         Owner marta = ownerRepository.save(Owner.builder()
@@ -74,7 +74,6 @@ public class DataLoaderEs implements CommandLineRunner {
                 .slackHandle("@marta.f")
                 .githubUsername("martafernandez")
                 .active(true)
-                .onCall(false)
                 .build());
 
         Owner diego = ownerRepository.save(Owner.builder()
@@ -85,7 +84,67 @@ public class DataLoaderEs implements CommandLineRunner {
                 .department("Ingeniería")
                 .timezone("America/Mexico_City")
                 .active(true)
+                .build());
+
+        // Crear ingenieros de soporte
+        SupportEngineer sePablo = supportEngineerRepository.save(SupportEngineer.builder()
+                .name("Pablo Ruiz")
+                .email("pablo@incidentnow.io")
+                .phone("+34-600-200-101")
+                .timezone("Europe/Madrid")
+                .slackHandle("@pablo.r")
+                .githubUsername("pabloruiz")
+                .active(true)
+                .onCall(true)
+                .workingHoursStart(LocalTime.of(8, 0))
+                .workingHoursEnd(LocalTime.of(17, 0))
+                .categories(
+                        List.of(IncidentCategory.DATABASE, IncidentCategory.PERFORMANCE, IncidentCategory.APPLICATION))
+                .build());
+
+        SupportEngineer seElena = supportEngineerRepository.save(SupportEngineer.builder()
+                .name("Elena Torres")
+                .email("elena@incidentnow.io")
+                .phone("+34-600-200-102")
+                .timezone("Europe/Madrid")
+                .slackHandle("@elena.t")
+                .githubUsername("elenatorres")
+                .active(true)
                 .onCall(false)
+                .workingHoursStart(LocalTime.of(9, 0))
+                .workingHoursEnd(LocalTime.of(18, 0))
+                .categories(List.of(IncidentCategory.NETWORK, IncidentCategory.HARDWARE,
+                        IncidentCategory.CLOUD_INFRASTRUCTURE, IncidentCategory.DATABASE))
+                .build());
+
+        SupportEngineer seJavier = supportEngineerRepository.save(SupportEngineer.builder()
+                .name("Javier Moreno")
+                .email("javier@incidentnow.io")
+                .phone("+34-600-200-103")
+                .timezone("Europe/Madrid")
+                .slackHandle("@javier.m")
+                .githubUsername("javiermoreno")
+                .active(true)
+                .onCall(false)
+                .workingHoursStart(LocalTime.of(7, 0))
+                .workingHoursEnd(LocalTime.of(16, 0))
+                .categories(List.of(IncidentCategory.SECURITY, IncidentCategory.ACCESS_PERMISSIONS,
+                        IncidentCategory.NETWORK))
+                .build());
+
+        SupportEngineer seIsabel = supportEngineerRepository.save(SupportEngineer.builder()
+                .name("Isabel Navarro")
+                .email("isabel@incidentnow.io")
+                .phone("+34-600-200-104")
+                .timezone("Europe/Madrid")
+                .slackHandle("@isabel.n")
+                .githubUsername("isabelnavarro")
+                .active(true)
+                .onCall(true)
+                .workingHoursStart(LocalTime.of(10, 0))
+                .workingHoursEnd(LocalTime.of(19, 0))
+                .categories(
+                        List.of(IncidentCategory.APPLICATION, IncidentCategory.SOFTWARE, IncidentCategory.PERFORMANCE))
                 .build());
 
         // Crear incidencias
@@ -102,7 +161,7 @@ public class DataLoaderEs implements CommandLineRunner {
                 .affectedSystems(List.of("API Gateway", "Servicio de Usuarios", "Servicio de Pedidos"))
                 .affectedUsers(5000)
                 .owner(ana)
-                .assignees(new HashSet<>(Set.of(ana, carlos)))
+                .assignees(new HashSet<>(Set.of(sePablo, seElena)))
                 .workaround("Reiniciar el pool de conexiones cada 30 minutos")
                 .githubRepo(GitHubRepo.builder()
                         .repoOwner("incidentnow")
@@ -127,7 +186,7 @@ public class DataLoaderEs implements CommandLineRunner {
                 .affectedSystems(List.of("Todos los servicios públicos"))
                 .affectedUsers(10000)
                 .owner(marta)
-                .assignees(new HashSet<>(Set.of(marta)))
+                .assignees(new HashSet<>(Set.of(seJavier)))
                 .dueDate(LocalDateTime.now().plusDays(2))
                 .build());
 
@@ -144,7 +203,7 @@ public class DataLoaderEs implements CommandLineRunner {
                 .affectedSystems(List.of("Servicio de Búsqueda", "Elasticsearch"))
                 .affectedUsers(2000)
                 .owner(carlos)
-                .assignees(new HashSet<>(Set.of(carlos)))
+                .assignees(new HashSet<>(Set.of(seIsabel)))
                 .rootCause("Índice de Elasticsearch no optimizado después de una importación masiva de datos")
                 .resolution(
                         "Se ejecutó force-merge en el índice de búsqueda y se actualizó el pipeline de importación para incluir el paso de optimización")
@@ -165,7 +224,7 @@ public class DataLoaderEs implements CommandLineRunner {
                 .affectedSystems(List.of("Servicio de Notificaciones"))
                 .affectedUsers(500)
                 .owner(ana)
-                .assignees(new HashSet<>(Set.of(ana)))
+                .assignees(new HashSet<>(Set.of(sePablo)))
                 .workaround("Reinicio programado diario del pod a las 3 AM UTC")
                 .githubRepo(GitHubRepo.builder()
                         .repoOwner("incidentnow")
@@ -221,13 +280,13 @@ public class DataLoaderEs implements CommandLineRunner {
         timelineEventRepository.save(TimelineEvent.builder()
                 .incident(inc1)
                 .eventType(TimelineEventType.ASSIGNED)
-                .description("Asignado a: Ana García, Carlos López")
-                .newValue("Ana García, Carlos López")
+                .description("Asignado a: Pablo Ruiz, Elena Torres")
+                .newValue("Pablo Ruiz, Elena Torres")
                 .actor(ana)
                 .timestamp(LocalDateTime.now().minusHours(2))
                 .build());
 
-        log.info("Datos de ejemplo cargados: {} propietarios, {} incidencias", ownerRepository.count(),
-                incidentRepository.count());
+        log.info("Datos de ejemplo cargados: {} propietarios, {} ingenieros de soporte, {} incidencias",
+                ownerRepository.count(), supportEngineerRepository.count(), incidentRepository.count());
     }
 }

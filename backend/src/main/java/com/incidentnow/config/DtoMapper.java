@@ -26,7 +26,6 @@ public class DtoMapper {
                 owner.getSlackHandle(),
                 owner.getGithubUsername(),
                 owner.isActive(),
-                owner.isOnCall(),
                 owner.getCreatedAt(),
                 owner.getUpdatedAt());
     }
@@ -41,6 +40,39 @@ public class DtoMapper {
                 owner.getAvatarUrl(),
                 owner.getTeam(),
                 owner.getRole());
+    }
+
+    // ===== Support Engineer Mappings =====
+
+    public SupportEngineerResponseDTO toSupportEngineerResponse(SupportEngineer se) {
+        return new SupportEngineerResponseDTO(
+                se.getId(),
+                se.getName(),
+                se.getEmail(),
+                se.getPhone(),
+                se.getAvatarUrl(),
+                se.getTimezone(),
+                se.getSlackHandle(),
+                se.getGithubUsername(),
+                se.isActive(),
+                se.isOnCall(),
+                se.getWorkingHoursStart(),
+                se.getWorkingHoursEnd(),
+                se.getCategories(),
+                se.getCreatedAt(),
+                se.getUpdatedAt());
+    }
+
+    public SupportEngineerSummaryDTO toSupportEngineerSummary(SupportEngineer se) {
+        if (se == null)
+            return null;
+        return new SupportEngineerSummaryDTO(
+                se.getId(),
+                se.getName(),
+                se.getEmail(),
+                se.getAvatarUrl(),
+                se.isOnCall(),
+                se.getCategories());
     }
 
     // ===== Incident Mappings =====
@@ -61,8 +93,8 @@ public class DtoMapper {
                     gh.getCommitSha());
         }
 
-        List<OwnerSummaryDTO> assignees = incident.getAssignees() != null
-                ? incident.getAssignees().stream().map(this::toOwnerSummary).toList()
+        List<SupportEngineerSummaryDTO> assignees = incident.getAssignees() != null
+                ? incident.getAssignees().stream().map(this::toSupportEngineerSummary).toList()
                 : Collections.emptyList();
 
         return new IncidentResponseDTO(

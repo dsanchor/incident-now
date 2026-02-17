@@ -51,6 +51,10 @@ import { MatButtonModule } from '@angular/material/button';
             <mat-icon matListItemIcon>people</mat-icon>
             <span matListItemTitle>Owners</span>
           </a>
+          <a mat-list-item routerLink="/support-engineers" routerLinkActive="active-link">
+            <mat-icon matListItemIcon>engineering</mat-icon>
+            <span matListItemTitle>Support Engineers</span>
+          </a>
         </mat-nav-list>
       </mat-sidenav>
 
