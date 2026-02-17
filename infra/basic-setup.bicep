@@ -15,7 +15,9 @@ param projectDisplayName string = 'project_display_name'
 //ensures unique name for the account
 // Create a short, unique suffix, that will be unique to each resource group
 param deploymentTimestamp string = utcNow('yyyyMMddHHmmss')
-var uniqueSuffix = substring(uniqueString('${resourceGroup().id}-${deploymentTimestamp}'), 0, 4)
+@description('Optional unique suffix. If not provided, one will be auto-generated.')
+param uniqueSuffixParam string = ''
+var uniqueSuffix = uniqueSuffixParam != '' ? uniqueSuffixParam : substring(uniqueString('${resourceGroup().id}-${deploymentTimestamp}'), 0, 4)
 var accountName = toLower('${aiServicesName}${uniqueSuffix}')
 @allowed([
   'australiaeast'
@@ -87,14 +89,6 @@ resource account 'Microsoft.CognitiveServices/accounts@2025-04-01-preview' = {
 }
 
 /*
-  Step 2: Deploy gpt-4o model
-  
-  - Agents will use the build-in model deployments
-*/ 
-
-
-
-/*
   Step 3: Create a Cognitive Services Project
     
 */
@@ -162,3 +156,57 @@ output accountEndpoint string = account.properties.endpoint
 output logAnalyticsWorkspaceId string = logAnalyticsWorkspace.id
 output applicationInsightsConnectionString string = applicationInsights.properties.ConnectionString
 output applicationInsightsInstrumentationKey string = applicationInsights.properties.InstrumentationKey
+
+/*
+  Step 6: Create API Management (BasicV2)
+*/
+@description('The email address of the API Management publisher.')
+param apimPublisherEmail string = 'admin@incident-now.io'
+
+@description('The name of the API Management publisher.')
+param apimPublisherName string = 'IncidentNow'
+
+resource apiManagement 'Microsoft.ApiManagement/service@2023-09-01-preview' = {
+  name: 'apim-${accountName}'
+  location: location
+  sku: {
+    name: 'BasicV2'
+    capacity: 1
+  }
+  identity: {
+    type: 'SystemAssigned'
+  }
+  properties: {
+    publisherEmail: apimPublisherEmail
+    publisherName: apimPublisherName
+  }
+}
+
+/*
+  Step 7: Create Azure AI Search
+*/
+@description('The SKU for Azure AI Search. Default: basic')
+@allowed(['free', 'basic', 'standard', 'standard2', 'standard3'])
+param searchSkuName string = 'basic'
+
+resource aiSearch 'Microsoft.Search/searchServices@2024-06-01-preview' = {
+  name: 'search-${accountName}'
+  location: location
+  sku: {
+    name: searchSkuName
+  }
+  identity: {
+    type: 'SystemAssigned'
+  }
+  properties: {
+    hostingMode: 'default'
+    partitionCount: 1
+    replicaCount: 1
+    publicNetworkAccess: 'enabled'
+  }
+}
+
+output apiManagementName string = apiManagement.name
+output apiManagementGatewayUrl string = apiManagement.properties.gatewayUrl
+output aiSearchName string = aiSearch.name
+output aiSearchEndpoint string = 'https://${aiSearch.name}.search.windows.net'
