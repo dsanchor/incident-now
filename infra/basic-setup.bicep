@@ -210,3 +210,102 @@ output apiManagementName string = apiManagement.name
 output apiManagementGatewayUrl string = apiManagement.properties.gatewayUrl
 output aiSearchName string = aiSearch.name
 output aiSearchEndpoint string = 'https://${aiSearch.name}.search.windows.net'
+
+/*
+  Step 8: Create Container App Environment and Apps
+*/
+@description('The container image for the backend app')
+param backendImage string = 'ghcr.io/dsanchor/incident-now/backend:latest'
+
+@description('The container image for the frontend app')
+param frontendImage string = 'ghcr.io/dsanchor/incident-now/frontend:latest'
+
+resource containerAppEnvironment 'Microsoft.App/managedEnvironments@2024-03-01' = {
+  name: 'cae-${accountName}'
+  location: location
+  properties: {
+    appLogsConfiguration: {
+      destination: 'log-analytics'
+      logAnalyticsConfiguration: {
+        customerId: logAnalyticsWorkspace.properties.customerId
+        sharedKey: logAnalyticsWorkspace.listKeys().primarySharedKey
+      }
+    }
+  }
+}
+
+resource backendApp 'Microsoft.App/containerApps@2024-03-01' = {
+  name: 'incidentnow-backend'
+  location: location
+  properties: {
+    managedEnvironmentId: containerAppEnvironment.id
+    configuration: {
+      ingress: {
+        external: true
+        targetPort: 8080
+        transport: 'http'
+        allowInsecure: false
+      }
+    }
+    template: {
+      containers: [
+        {
+          name: 'backend'
+          image: backendImage
+          resources: {
+            cpu: json('1')
+            memory: '2Gi'
+          }
+        }
+      ]
+      scale: {
+        minReplicas: 1
+        maxReplicas: 3
+      }
+    }
+  }
+}
+
+resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {
+  name: 'incidentnow-frontend'
+  location: location
+  properties: {
+    managedEnvironmentId: containerAppEnvironment.id
+    configuration: {
+      ingress: {
+        external: true
+        targetPort: 80
+        transport: 'http'
+        allowInsecure: false
+      }
+    }
+    template: {
+      containers: [
+        {
+          name: 'frontend'
+          image: frontendImage
+          resources: {
+            cpu: json('0.5')
+            memory: '1Gi'
+          }
+          env: [
+            {
+              name: 'API_BASE_URL'
+              value: 'https://${backendApp.properties.configuration.ingress.fqdn}/api/v1'
+            }
+          ]
+        }
+      ]
+      scale: {
+        minReplicas: 1
+        maxReplicas: 3
+      }
+    }
+  }
+}
+
+output containerAppEnvironmentName string = containerAppEnvironment.name
+output backendFqdn string = backendApp.properties.configuration.ingress.fqdn
+output frontendFqdn string = frontendApp.properties.configuration.ingress.fqdn
+output backendUrl string = 'https://${backendApp.properties.configuration.ingress.fqdn}'
+output frontendUrl string = 'https://${frontendApp.properties.configuration.ingress.fqdn}'

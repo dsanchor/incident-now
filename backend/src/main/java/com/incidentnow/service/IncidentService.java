@@ -35,22 +35,37 @@ public class IncidentService {
     private final TimelineEventRepository timelineEventRepository;
     private final DtoMapper mapper;
 
-    private final AtomicLong sequenceCounter = new AtomicLong(0);
+    private final AtomicLong sequenceCounter = new AtomicLong(-1);
+    private volatile boolean initialized = false;
 
-    @jakarta.annotation.PostConstruct
+    @org.springframework.context.event.EventListener(org.springframework.boot.context.event.ApplicationReadyEvent.class)
     public void initSequence() {
-        String maxNumber = incidentRepository.findMaxIncidentNumber();
+        initSequenceFromDb();
+    }
+
+    private synchronized void initSequenceFromDb() {
+        String currentYear = String.valueOf(Year.now().getValue());
+        String maxNumber = incidentRepository.findMaxIncidentNumberByYear(currentYear);
         if (maxNumber != null) {
             try {
                 String[] parts = maxNumber.split("-");
-                sequenceCounter.set(Long.parseLong(parts[parts.length - 1]));
+                long maxSeq = Long.parseLong(parts[parts.length - 1]);
+                sequenceCounter.set(maxSeq);
+                log.info("Initialized incident sequence counter to {} from {}", maxSeq, maxNumber);
             } catch (Exception e) {
                 log.warn("Could not parse max incident number: {}", maxNumber);
+                sequenceCounter.set(0);
             }
+        } else {
+            sequenceCounter.set(0);
         }
+        initialized = true;
     }
 
-    private String generateIncidentNumber() {
+    private synchronized String generateIncidentNumber() {
+        if (!initialized) {
+            initSequenceFromDb();
+        }
         long seq = sequenceCounter.incrementAndGet();
         return "INC-%d-%04d".formatted(Year.now().getValue(), seq);
     }

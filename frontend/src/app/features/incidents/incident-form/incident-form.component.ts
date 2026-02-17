@@ -137,7 +137,7 @@ import {
                   }
                 </mat-select>
                 @if (!isEdit()) {
-                  <mat-hint>Auto-assigned to logged-in owner</mat-hint>
+                  <mat-hint></mat-hint>
                 }
               </mat-form-field>
 
