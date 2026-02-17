@@ -502,6 +502,36 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
+  # ==================== AUTH ====================
+  /owners/login:
+    post:
+      tags:
+        - Owners
+      summary: Owner login
+      description: Validate owner credentials (email and password) for demo login
+      operationId: loginOwner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Owner'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
   # ==================== OWNERS ====================
   /owners:
     get:
@@ -1700,11 +1730,25 @@ components:
         role:
           $ref: '#/components/schemas/OwnerRole'
 
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+
     OwnerCreate:
       type: object
       required:
         - name
         - email
+        - password
         - team
         - role
       properties:
@@ -1714,6 +1758,11 @@ components:
         email:
           type: string
           format: email
+        password:
+          type: string
+          format: password
+          description: Owner password for login
+          minLength: 4
         phone:
           type: string
         avatarUrl:
@@ -1747,6 +1796,10 @@ components:
         email:
           type: string
           format: email
+        password:
+          type: string
+          format: password
+          description: Owner password (optional on update)
         phone:
           type: string
         avatarUrl:

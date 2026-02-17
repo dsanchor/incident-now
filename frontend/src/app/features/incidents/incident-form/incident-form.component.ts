@@ -31,6 +31,7 @@ import { IncidentService } from '../../../core/services/incident.service';
 import { OwnerService } from '../../../core/services/owner.service';
 import { SupportEngineerService } from '../../../core/services/support-engineer.service';
 import { NotificationService } from '../../../core/services/notification.service';
+import { AuthService } from '../../../core/services/auth.service';
 import {
     Incident,
     IncidentCreate,
@@ -135,6 +136,9 @@ import {
                     <mat-option [value]="owner.id">{{ owner.name }} ({{ owner.team }})</mat-option>
                   }
                 </mat-select>
+                @if (!isEdit()) {
+                  <mat-hint>Auto-assigned to logged-in owner</mat-hint>
+                }
               </mat-form-field>
 
               <mat-form-field appearance="outline" class="full-width">
@@ -315,6 +319,7 @@ export class IncidentFormComponent implements OnInit {
     private readonly ownerService = inject(OwnerService);
     private readonly supportEngineerService = inject(SupportEngineerService);
     private readonly notification = inject(NotificationService);
+    private readonly authService = inject(AuthService);
 
     readonly isEdit = signal(false);
     readonly loading = signal(false);
@@ -366,8 +371,18 @@ export class IncidentFormComponent implements OnInit {
         if (id) {
             this.isEdit.set(true);
             this.incidentId = id;
+        } else {
+            // For new incidents, set owner from logged-in user and disable the field
+            const currentOwner = this.authService.currentOwner();
+            if (currentOwner) {
+                this.form.get('ownerId')!.setValue(currentOwner.id);
+                this.form.get('ownerId')!.disable();
+            }
+        }
+
+        if (this.isEdit()) {
             this.loading.set(true);
-            this.incidentService.getIncident(id).subscribe({
+            this.incidentService.getIncident(this.incidentId).subscribe({
                 next: (incident) => {
                     // Load support engineers for the incident's category before patching
                     this.loadSupportEngineersByCategory(incident.category);
@@ -403,7 +418,7 @@ export class IncidentFormComponent implements OnInit {
         if (this.form.invalid) return;
 
         this.saving.set(true);
-        const v = this.form.value;
+        const v = this.form.getRawValue();
 
         const tags = v.tagsInput
             ? v.tagsInput

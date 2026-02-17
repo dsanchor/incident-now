@@ -7,19 +7,21 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public record OwnerCreateDTO(
-        @NotBlank(message = "Name is required") @Size(max = 255, message = "Name must not exceed 255 characters") String name,
+                @NotBlank(message = "Name is required") @Size(max = 255, message = "Name must not exceed 255 characters") String name,
 
-        @NotBlank(message = "Email is required") @Email(message = "Email must be valid") String email,
+                @NotBlank(message = "Email is required") @Email(message = "Email must be valid") String email,
 
-        String phone,
-        String avatarUrl,
+                @NotBlank(message = "Password is required") @Size(min = 4, message = "Password must be at least 4 characters") String password,
 
-        @NotBlank(message = "Team is required") String team,
+                String phone,
+                String avatarUrl,
 
-        @NotNull(message = "Role is required") OwnerRole role,
+                @NotBlank(message = "Team is required") String team,
 
-        String department,
-        String timezone,
-        String slackHandle,
-        String githubUsername) {
+                @NotNull(message = "Role is required") OwnerRole role,
+
+                String department,
+                String timezone,
+                String slackHandle,
+                String githubUsername) {
 }

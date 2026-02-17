@@ -1,10 +1,13 @@
-import { Component, ChangeDetectionStrategy, signal } from '@angular/core';
-import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
+import { Component, ChangeDetectionStrategy, signal, inject } from '@angular/core';
+import { RouterOutlet, RouterLink, RouterLinkActive, Router } from '@angular/router';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatListModule } from '@angular/material/list';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatDividerModule } from '@angular/material/divider';
+import { AuthService } from '../core/services/auth.service';
 
 @Component({
     selector: 'app-layout',
@@ -18,6 +21,8 @@ import { MatButtonModule } from '@angular/material/button';
         MatListModule,
         MatIconModule,
         MatButtonModule,
+        MatMenuModule,
+        MatDividerModule,
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
@@ -30,6 +35,26 @@ import { MatButtonModule } from '@angular/material/button';
         <span class="logo-text">IncidentNow</span>
       </span>
       <span class="spacer"></span>
+      <div class="user-info">
+        @if (authService.currentOwner(); as owner) {
+          <button mat-button [matMenuTriggerFor]="userMenu" class="user-button">
+            <mat-icon>account_circle</mat-icon>
+            <span class="user-name">{{ owner.name }}</span>
+            <mat-icon>arrow_drop_down</mat-icon>
+          </button>
+          <mat-menu #userMenu="matMenu">
+            <div class="user-menu-header">
+              <strong>{{ owner.name }}</strong>
+              <small>{{ owner.email }}</small>
+            </div>
+            <mat-divider></mat-divider>
+            <button mat-menu-item (click)="logout()">
+              <mat-icon>logout</mat-icon>
+              <span>Sign Out</span>
+            </button>
+          </mat-menu>
+        }
+      </div>
     </mat-toolbar>
 
     <mat-sidenav-container class="sidenav-container">
@@ -128,12 +153,49 @@ import { MatButtonModule } from '@angular/material/button';
       background: rgba(0, 0, 0, 0.04);
       font-weight: 500;
     }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+    }
+
+    .user-button {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      color: inherit;
+    }
+
+    .user-name {
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .user-menu-header {
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .user-menu-header small {
+      color: rgba(0, 0, 0, 0.54);
+      font-size: 12px;
+    }
   `,
 })
 export class LayoutComponent {
+    readonly authService = inject(AuthService);
+    private readonly router = inject(Router);
+
     readonly sidenavOpen = signal(true);
 
     toggleSidenav(): void {
         this.sidenavOpen.update((v) => !v);
+    }
+
+    logout(): void {
+        this.authService.logout();
+        this.router.navigate(['/login']);
     }
 }

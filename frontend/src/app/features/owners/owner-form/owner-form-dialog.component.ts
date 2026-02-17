@@ -44,6 +44,16 @@ import { Owner, OWNER_ROLES } from '../../../core/models';
         </mat-form-field>
 
         <mat-form-field appearance="outline">
+          <mat-label>Password</mat-label>
+          <input matInput formControlName="password" type="password" />
+          @if (isEdit) {
+            <mat-hint>Leave blank to keep current password</mat-hint>
+          } @else {
+            <mat-error>Password is required (min 4 chars)</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
           <mat-label>Phone</mat-label>
           <input matInput formControlName="phone" />
         </mat-form-field>
@@ -145,6 +155,7 @@ export class OwnerFormDialogComponent implements OnInit {
         this.form = this.fb.group({
             name: [o?.name || '', Validators.required],
             email: [o?.email || '', [Validators.required, Validators.email]],
+            password: ['', this.isEdit ? [] : [Validators.required, Validators.minLength(4)]],
             phone: [o?.phone || ''],
             team: [o?.team || '', Validators.required],
             role: [o?.role || '', Validators.required],

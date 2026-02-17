@@ -61,6 +61,7 @@ public class OwnerService {
         Owner owner = Owner.builder()
                 .name(dto.name())
                 .email(dto.email())
+                .password(dto.password())
                 .phone(dto.phone())
                 .avatarUrl(dto.avatarUrl())
                 .team(dto.team())
@@ -88,6 +89,9 @@ public class OwnerService {
 
         owner.setName(dto.name());
         owner.setEmail(dto.email());
+        if (dto.password() != null && !dto.password().isBlank()) {
+            owner.setPassword(dto.password());
+        }
         owner.setPhone(dto.phone());
         owner.setAvatarUrl(dto.avatarUrl());
         owner.setTeam(dto.team());
@@ -117,6 +121,8 @@ public class OwnerService {
             owner.setName(dto.name());
         if (dto.email() != null)
             owner.setEmail(dto.email());
+        if (dto.password() != null && !dto.password().isBlank())
+            owner.setPassword(dto.password());
         if (dto.phone() != null)
             owner.setPhone(dto.phone());
         if (dto.avatarUrl() != null)
@@ -159,5 +165,20 @@ public class OwnerService {
     public Owner findOwnerOrThrow(UUID ownerId) {
         return ownerRepository.findById(ownerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Owner", ownerId));
+    }
+
+    @Transactional(readOnly = true)
+    public OwnerResponseDTO login(String email, String password) {
+        log.info("Login attempt for email: {}", email);
+        Owner owner = ownerRepository.findByEmail(email)
+                .orElse(null);
+        if (owner == null || !owner.getPassword().equals(password)) {
+            return null;
+        }
+        if (!owner.isActive()) {
+            return null;
+        }
+        log.info("Login successful for owner: {}", owner.getId());
+        return mapper.toOwnerResponse(owner);
     }
 }

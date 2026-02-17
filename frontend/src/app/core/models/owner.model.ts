@@ -29,6 +29,7 @@ export interface Owner {
 export interface OwnerCreate {
     name: string;
     email: string;
+    password: string;
     phone?: string;
     avatarUrl?: string;
     team: string;
@@ -39,6 +40,17 @@ export interface OwnerCreate {
     githubUsername?: string;
 }
 
-export interface OwnerUpdate extends OwnerCreate {
+export interface OwnerUpdate {
+    name: string;
+    email: string;
+    password?: string;
+    phone?: string;
+    avatarUrl?: string;
+    team: string;
+    role: OwnerRole;
+    department?: string;
+    timezone?: string;
+    slackHandle?: string;
+    githubUsername?: string;
     active?: boolean;
 }

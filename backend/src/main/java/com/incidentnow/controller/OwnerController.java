@@ -41,6 +41,16 @@ public class OwnerController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/login")
+    public ResponseEntity<OwnerResponseDTO> login(@Valid @RequestBody LoginRequestDTO dto) {
+        log.info("POST /owners/login - email: {}", dto.email());
+        OwnerResponseDTO response = ownerService.login(dto.email(), dto.password());
+        if (response == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        return ResponseEntity.ok(response);
+    }
+
     @GetMapping("/{ownerId}")
     public ResponseEntity<OwnerResponseDTO> getOwnerById(@PathVariable UUID ownerId) {
         log.info("GET /owners/{}", ownerId);
