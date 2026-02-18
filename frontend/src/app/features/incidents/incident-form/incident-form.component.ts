@@ -26,12 +26,14 @@ import { MatNativeDateModule } from '@angular/material/core';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { COMMA, ENTER } from '@angular/cdk/keycodes';
 import { IncidentService } from '../../../core/services/incident.service';
 import { OwnerService } from '../../../core/services/owner.service';
 import { SupportEngineerService } from '../../../core/services/support-engineer.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { AiIncidentService } from '../../../core/services/ai-incident.service';
 import {
     Incident,
     IncidentCreate,
@@ -62,6 +64,7 @@ import {
         MatCheckboxModule,
         MatProgressSpinnerModule,
         MatAutocompleteModule,
+        MatButtonToggleModule,
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
@@ -70,11 +73,79 @@ import {
         <mat-icon>arrow_back</mat-icon>
       </button>
       <h1>{{ isEdit() ? 'Edit Incident' : 'New Incident' }}</h1>
+
+      @if (!isEdit()) {
+        <mat-button-toggle-group
+          [value]="mode()"
+          (change)="onModeChange($event.value)"
+          class="mode-toggle"
+        >
+          <mat-button-toggle value="form">
+            <mat-icon>edit_note</mat-icon>
+            Form
+          </mat-button-toggle>
+          <mat-button-toggle value="ai">
+            <mat-icon>auto_awesome</mat-icon>
+            AI Assisted
+          </mat-button-toggle>
+        </mat-button-toggle-group>
+      }
     </div>
 
     @if (loading()) {
       <div class="loading-container">
         <mat-spinner diameter="48" />
+      </div>
+    } @else if (mode() === 'ai' && !isEdit()) {
+      <!-- AI Assisted Mode -->
+      <div class="ai-container">
+        <mat-card class="ai-card">
+          <mat-card-header>
+            <mat-icon mat-card-avatar class="ai-icon">auto_awesome</mat-icon>
+            <mat-card-title>AI-Assisted Incident Creation</mat-card-title>
+            <mat-card-subtitle>Describe the incident in your own words and let AI structure it for you</mat-card-subtitle>
+          </mat-card-header>
+          <mat-card-content>
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Owner</mat-label>
+              <mat-select [formControl]="aiOwnerControl">
+                @for (owner of owners(); track owner.id) {
+                  <mat-option [value]="owner.id">{{ owner.name }} ({{ owner.team }})</mat-option>
+                }
+              </mat-select>
+              <mat-hint>Auto-assigned to logged-in owner</mat-hint>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="full-width ai-textarea">
+              <mat-label>Describe the incident</mat-label>
+              <textarea
+                matInput
+                [formControl]="aiDescriptionControl"
+                rows="12"
+                placeholder="Example: Our main API gateway started returning 503 errors around 3:00 PM. Multiple customers are affected and cannot access the dashboard. The issue seems related to the recent deployment of the authentication service. We've tried restarting the pods but the problem persists..."
+              ></textarea>
+              <mat-hint align="end">{{ aiDescriptionControl.value?.length || 0 }} characters</mat-hint>
+              <mat-error>Please provide a description of the incident</mat-error>
+            </mat-form-field>
+          </mat-card-content>
+          <mat-card-actions align="end">
+            <button mat-stroked-button type="button" routerLink="/incidents">Cancel</button>
+            <button
+              mat-raised-button
+              color="primary"
+              (click)="onAiSubmit()"
+              [disabled]="aiDescriptionControl.invalid || aiProcessing()"
+            >
+              @if (aiProcessing()) {
+                <mat-spinner diameter="20" />
+              }
+              @if (!aiProcessing()) {
+                <mat-icon>auto_awesome</mat-icon>
+              }
+              {{ aiProcessing() ? 'Analyzing...' : 'Create with AI' }}
+            </button>
+          </mat-card-actions>
+        </mat-card>
       </div>
     } @else {
       <form [formGroup]="form" (ngSubmit)="onSubmit()">
@@ -235,9 +306,8 @@ import {
           >
             @if (saving()) {
               <mat-spinner diameter="20" />
-            } @else {
-              {{ isEdit() ? 'Update' : 'Create' }} Incident
             }
+            {{ saving() ? 'Saving...' : (isEdit() ? 'Update' : 'Create') + ' Incident' }}
           </button>
         </div>
       </form>
@@ -257,12 +327,65 @@ import {
       font-weight: 500;
     }
 
+    .mode-toggle {
+      margin-left: auto;
+    }
+
+    .mode-toggle mat-icon {
+      margin-right: 4px;
+      font-size: 18px;
+      height: 18px;
+      width: 18px;
+    }
+
     .loading-container {
       display: flex;
       justify-content: center;
       padding: 64px;
     }
 
+    /* AI Assisted Mode */
+    .ai-container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .ai-card {
+      padding: 8px;
+    }
+
+    .ai-icon {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      font-size: 24px;
+    }
+
+    .ai-card mat-card-content {
+      padding-top: 24px;
+    }
+
+    .ai-textarea textarea {
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    .ai-card mat-card-actions {
+      padding: 16px 24px;
+      gap: 12px;
+      display: flex;
+    }
+
+    .ai-card mat-card-actions button mat-icon {
+      margin-right: 4px;
+    }
+
+    /* Form Mode */
     .form-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -320,12 +443,15 @@ export class IncidentFormComponent implements OnInit {
     private readonly supportEngineerService = inject(SupportEngineerService);
     private readonly notification = inject(NotificationService);
     private readonly authService = inject(AuthService);
+    private readonly aiIncidentService = inject(AiIncidentService);
 
     readonly isEdit = signal(false);
     readonly loading = signal(false);
     readonly saving = signal(false);
     readonly owners = signal<Owner[]>([]);
     readonly supportEngineers = signal<SupportEngineer[]>([]);
+    readonly mode = signal<'form' | 'ai'>('form');
+    readonly aiProcessing = signal(false);
 
     readonly priorities = PRIORITIES;
     readonly severities = SEVERITIES;
@@ -352,6 +478,54 @@ export class IncidentFormComponent implements OnInit {
         pullRequestNumber: [null as number | null],
     });
 
+    // AI mode controls
+    readonly aiDescriptionControl = new FormControl('', [Validators.required, Validators.minLength(20)]);
+    readonly aiOwnerControl = new FormControl<string | null>(null);
+
+    onModeChange(newMode: 'form' | 'ai'): void {
+        this.mode.set(newMode);
+    }
+
+    onAiSubmit(): void {
+        if (this.aiDescriptionControl.invalid) {
+            this.aiDescriptionControl.markAsTouched();
+            return;
+        }
+
+        const ownerId = this.aiOwnerControl.value || this.authService.currentOwner()?.id;
+        if (!ownerId) {
+            this.notification.error('No owner assigned. Please log in or select an owner.');
+            return;
+        }
+
+        this.aiProcessing.set(true);
+        this.aiIncidentService
+            .processDescription({
+                description: this.aiDescriptionControl.value!,
+                ownerId,
+            })
+            .subscribe({
+                next: (incidentCreate) => {
+                    // Create the incident through the regular flow
+                    this.incidentService.createIncident(incidentCreate).subscribe({
+                        next: (incident) => {
+                            this.aiProcessing.set(false);
+                            this.notification.success(`Incident ${incident.incidentNumber} created via AI`);
+                            this.router.navigate(['/incidents', incident.id]);
+                        },
+                        error: () => {
+                            this.aiProcessing.set(false);
+                            this.notification.error('Failed to create incident');
+                        },
+                    });
+                },
+                error: () => {
+                    this.aiProcessing.set(false);
+                    this.notification.error('AI processing failed. Please try again or use the form.');
+                },
+            });
+    }
+
     ngOnInit(): void {
         this.ownerService.getOwners({ pageSize: 100, active: true }).subscribe((res) => {
             this.owners.set(res.data);
@@ -377,6 +551,9 @@ export class IncidentFormComponent implements OnInit {
             if (currentOwner) {
                 this.form.get('ownerId')!.setValue(currentOwner.id);
                 this.form.get('ownerId')!.disable();
+                // Also set AI mode owner
+                this.aiOwnerControl.setValue(currentOwner.id);
+                this.aiOwnerControl.disable();
             }
         }
 
