@@ -106,15 +106,22 @@ import {
             <mat-card-subtitle>Describe the incident in your own words and let AI structure it for you</mat-card-subtitle>
           </mat-card-header>
           <mat-card-content>
-            <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Owner</mat-label>
-              <mat-select [formControl]="aiOwnerControl">
-                @for (owner of owners(); track owner.id) {
-                  <mat-option [value]="owner.id">{{ owner.name }} ({{ owner.team }})</mat-option>
-                }
-              </mat-select>
-              <mat-hint>Auto-assigned to logged-in owner</mat-hint>
-            </mat-form-field>
+            @if (currentOwnerName()) {
+              <div class="ai-owner-badge">
+                <mat-icon>person</mat-icon>
+                <span>Reporting as: <strong>{{ currentOwnerName() }}</strong></span>
+              </div>
+            } @else {
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Owner</mat-label>
+                <mat-select [formControl]="aiOwnerControl">
+                  @for (owner of owners(); track owner.id) {
+                    <mat-option [value]="owner.id">{{ owner.name }} ({{ owner.team }})</mat-option>
+                  }
+                </mat-select>
+                <mat-hint>Select the incident owner</mat-hint>
+              </mat-form-field>
+            }
 
             <mat-form-field appearance="outline" class="full-width ai-textarea">
               <mat-label>Describe the incident</mat-label>
@@ -385,6 +392,24 @@ import {
       margin-right: 4px;
     }
 
+    .ai-owner-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      background: #e3f2fd;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-size: 14px;
+      color: #1565c0;
+    }
+
+    .ai-owner-badge mat-icon {
+      font-size: 20px;
+      height: 20px;
+      width: 20px;
+    }
+
     /* Form Mode */
     .form-grid {
       display: grid;
@@ -452,6 +477,7 @@ export class IncidentFormComponent implements OnInit {
     readonly supportEngineers = signal<SupportEngineer[]>([]);
     readonly mode = signal<'form' | 'ai'>('form');
     readonly aiProcessing = signal(false);
+    readonly currentOwnerName = signal<string | null>(null);
 
     readonly priorities = PRIORITIES;
     readonly severities = SEVERITIES;
@@ -492,7 +518,7 @@ export class IncidentFormComponent implements OnInit {
             return;
         }
 
-        const ownerId = this.aiOwnerControl.value || this.authService.currentOwner()?.id;
+        const ownerId = this.aiOwnerControl.value ?? this.authService.currentOwner()?.id;
         if (!ownerId) {
             this.notification.error('No owner assigned. Please log in or select an owner.');
             return;
@@ -553,7 +579,7 @@ export class IncidentFormComponent implements OnInit {
                 this.form.get('ownerId')!.disable();
                 // Also set AI mode owner
                 this.aiOwnerControl.setValue(currentOwner.id);
-                this.aiOwnerControl.disable();
+                this.currentOwnerName.set(currentOwner.name);
             }
         }
 
