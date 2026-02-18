@@ -519,6 +519,9 @@ export class IncidentFormComponent implements OnInit {
         }
 
         const ownerId = this.aiOwnerControl.value ?? this.authService.currentOwner()?.id;
+        const ownerName = this.authService.currentOwner()?.name
+            ?? this.owners().find((o) => o.id === ownerId)?.name
+            ?? 'Unknown';
         if (!ownerId) {
             this.notification.error('No owner assigned. Please log in or select an owner.');
             return;
@@ -529,21 +532,13 @@ export class IncidentFormComponent implements OnInit {
             .processDescription({
                 description: this.aiDescriptionControl.value!,
                 ownerId,
+                ownerName,
             })
             .subscribe({
-                next: (incidentCreate) => {
-                    // Create the incident through the regular flow
-                    this.incidentService.createIncident(incidentCreate).subscribe({
-                        next: (incident) => {
-                            this.aiProcessing.set(false);
-                            this.notification.success(`Incident ${incident.incidentNumber} created via AI`);
-                            this.router.navigate(['/incidents', incident.id]);
-                        },
-                        error: () => {
-                            this.aiProcessing.set(false);
-                            this.notification.error('Failed to create incident');
-                        },
-                    });
+                next: () => {
+                    this.aiProcessing.set(false);
+                    this.notification.success('Incident created via AI');
+                    this.router.navigate(['/incidents']);
                 },
                 error: () => {
                     this.aiProcessing.set(false);

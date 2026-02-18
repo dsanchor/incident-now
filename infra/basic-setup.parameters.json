@@ -25,6 +25,12 @@
     },
     "modelCapacity": {
       "value": 100
+    },
+    "agentName": {
+      "value": "IncidentAssistantAgent"
+    },
+    "agentApiKey": {
+      "value": ""
     }
   }
 }

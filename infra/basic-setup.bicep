@@ -17,7 +17,9 @@ param projectDisplayName string = 'project_display_name'
 param deploymentTimestamp string = utcNow('yyyyMMddHHmmss')
 @description('Optional unique suffix. If not provided, one will be auto-generated.')
 param uniqueSuffixParam string = ''
-var uniqueSuffix = uniqueSuffixParam != '' ? uniqueSuffixParam : substring(uniqueString('${resourceGroup().id}-${deploymentTimestamp}'), 0, 4)
+var uniqueSuffix = uniqueSuffixParam != ''
+  ? uniqueSuffixParam
+  : substring(uniqueString('${resourceGroup().id}-${deploymentTimestamp}'), 0, 4)
 var accountName = toLower('${aiServicesName}${uniqueSuffix}')
 @allowed([
   'australiaeast'
@@ -107,15 +109,15 @@ resource project 'Microsoft.CognitiveServices/accounts/projects@2025-04-01-previ
 }
 
 #disable-next-line BCP081
-resource modelDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01'= {
+resource modelDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = {
   parent: account
   name: modelName
-  sku : {
+  sku: {
     capacity: modelCapacity
     name: modelSkuName
   }
   properties: {
-    model:{
+    model: {
       name: modelName
       format: modelFormat
       version: modelVersion
@@ -220,6 +222,13 @@ param backendImage string = 'ghcr.io/dsanchor/incident-now/backend:latest'
 @description('The container image for the frontend app')
 param frontendImage string = 'ghcr.io/dsanchor/incident-now/frontend:latest'
 
+@description('The AI agent name')
+param agentName string = ''
+
+@description('The API key for the AI agent (APIM subscription key)')
+@secure()
+param agentApiKey string = ''
+
 resource containerAppEnvironment 'Microsoft.App/managedEnvironments@2024-03-01' = {
   name: 'cae-${accountName}'
   location: location
@@ -260,7 +269,7 @@ resource backendApp 'Microsoft.App/containerApps@2024-03-01' = {
       ]
       scale: {
         minReplicas: 1
-        maxReplicas: 3
+        maxReplicas: 1
       }
     }
   }
@@ -272,6 +281,12 @@ resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {
   properties: {
     managedEnvironmentId: containerAppEnvironment.id
     configuration: {
+      secrets: [
+        {
+          name: 'agent-api-key'
+          value: agentApiKey
+        }
+      ]
       ingress: {
         external: true
         targetPort: 80
@@ -293,7 +308,65 @@ resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'API_BASE_URL'
               value: 'https://${backendApp.properties.configuration.ingress.fqdn}/api/v1'
             }
+            {
+              name: 'FOUNDRY_RESOURCE_NAME'
+              value: accountName
+            }
+            {
+              name: 'FOUNDRY_PROJECT_NAME'
+              value: projectName
+            }
+            {
+              name: 'AGENT_NAME'
+              value: agentName
+            }
+            {
+              name: 'AGENT_API_KEY'
+              secretRef: 'agent-api-key'
+            }
+            {
+              name: 'AGENT_PROXY_ENDPOINT'
+              value: apiManagement.properties.gatewayUrl
+            }
           ]
+        }
+      ]
+      scale: {
+        minReplicas: 1
+        maxReplicas: 3
+      }
+    }
+  }
+}
+
+@description('The container image for the agent proxy app')
+param agentProxyImage string = 'ghcr.io/dsanchor/incident-now/agentproxy:latest'
+
+resource agentProxyApp 'Microsoft.App/containerApps@2024-03-01' = {
+  name: 'incidentnow-agentproxy'
+  location: location
+  identity: {
+    type: 'SystemAssigned'
+  }
+  properties: {
+    managedEnvironmentId: containerAppEnvironment.id
+    configuration: {
+      ingress: {
+        external: true
+        targetPort: 8000
+        transport: 'http'
+        allowInsecure: false
+      }
+    }
+    template: {
+      containers: [
+        {
+          name: 'agentproxy'
+          image: agentProxyImage
+          resources: {
+            cpu: json('0.5')
+            memory: '1Gi'
+          }
         }
       ]
       scale: {
@@ -307,5 +380,7 @@ resource frontendApp 'Microsoft.App/containerApps@2024-03-01' = {
 output containerAppEnvironmentName string = containerAppEnvironment.name
 output backendFqdn string = backendApp.properties.configuration.ingress.fqdn
 output frontendFqdn string = frontendApp.properties.configuration.ingress.fqdn
+output agentProxyFqdn string = agentProxyApp.properties.configuration.ingress.fqdn
 output backendUrl string = 'https://${backendApp.properties.configuration.ingress.fqdn}'
 output frontendUrl string = 'https://${frontendApp.properties.configuration.ingress.fqdn}'
+output agentProxyUrl string = 'https://${agentProxyApp.properties.configuration.ingress.fqdn}'

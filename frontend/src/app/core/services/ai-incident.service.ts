@@ -1,80 +1,59 @@
 import { Injectable } from '@angular/core';
-import { Observable, of, delay } from 'rxjs';
-import { IncidentCreate, Priority, Severity, IncidentCategory } from '../models';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
+import { environment } from '../../../environments/environment';
 
 export interface AiIncidentRequest {
     description: string;
     ownerId: string;
+    ownerName: string;
+}
+
+interface RunAgentResponse {
+    output: string;
 }
 
 @Injectable({ providedIn: 'root' })
 export class AiIncidentService {
+    private readonly agentProxyEndpoint: string;
+    private readonly foundryResourceName: string;
+    private readonly foundryProjectName: string;
+    private readonly agentName: string;
+    private readonly apiKey: string;
+
+    constructor(private readonly http: HttpClient) {
+        const { foundryResourceName, foundryProjectName, agentName, apiKey, agentProxyEndpoint } =
+            environment.aiAgent;
+
+        this.agentProxyEndpoint = agentProxyEndpoint;
+        this.foundryResourceName = foundryResourceName;
+        this.foundryProjectName = foundryProjectName;
+        this.agentName = agentName;
+        this.apiKey = apiKey;
+    }
+
     /**
-     * Processes a free-text incident description and returns a structured IncidentCreate.
-     * Currently returns a mocked response. Will be replaced with a real AI backend call.
+     * Sends a free-text incident description to the agent proxy,
+     * which forwards it to the Azure AI Foundry agent.
+     * The agent is responsible for creating the incident via the backend API.
+     * Returns an Observable that completes on success or errors on failure.
      */
-    processDescription(request: AiIncidentRequest): Observable<IncidentCreate> {
-        const description = request.description;
+    processDescription(request: AiIncidentRequest): Observable<void> {
+        const inputContent = `Owner: ${request.ownerName}\n\n${request.description}`;
 
-        // Mock AI analysis: extract a title from the first sentence
-        const firstSentence = description.split(/[.!?\n]/)[0].trim();
-        const title =
-            firstSentence.length > 100
-                ? firstSentence.substring(0, 97) + '...'
-                : firstSentence || 'AI-generated incident';
+        const headers = new HttpHeaders({
+            'Content-Type': 'application/json',
+            'Ocp-Apim-Subscription-Key': this.apiKey,
+        });
 
-        // Mock: derive priority/severity from keywords
-        const lowerDesc = description.toLowerCase();
-        let priority: Priority = 'medium';
-        let severity: Severity = 'medium';
-        let category: IncidentCategory = 'software';
-
-        if (lowerDesc.includes('critical') || lowerDesc.includes('outage') || lowerDesc.includes('down')) {
-            priority = 'critical';
-            severity = 'critical';
-        } else if (lowerDesc.includes('urgent') || lowerDesc.includes('major') || lowerDesc.includes('severe')) {
-            priority = 'high';
-            severity = 'high';
-        } else if (lowerDesc.includes('minor') || lowerDesc.includes('cosmetic') || lowerDesc.includes('low')) {
-            priority = 'low';
-            severity = 'low';
-        }
-
-        if (lowerDesc.includes('network') || lowerDesc.includes('dns') || lowerDesc.includes('connectivity')) {
-            category = 'network';
-        } else if (lowerDesc.includes('database') || lowerDesc.includes('sql') || lowerDesc.includes('query')) {
-            category = 'database';
-        } else if (lowerDesc.includes('security') || lowerDesc.includes('breach') || lowerDesc.includes('vulnerability')) {
-            category = 'security';
-        } else if (lowerDesc.includes('hardware') || lowerDesc.includes('disk') || lowerDesc.includes('memory')) {
-            category = 'hardware';
-        } else if (lowerDesc.includes('cloud') || lowerDesc.includes('azure') || lowerDesc.includes('aws')) {
-            category = 'cloud_infrastructure';
-        } else if (lowerDesc.includes('performance') || lowerDesc.includes('slow') || lowerDesc.includes('latency')) {
-            category = 'performance';
-        } else if (lowerDesc.includes('permission') || lowerDesc.includes('access') || lowerDesc.includes('auth')) {
-            category = 'access_permissions';
-        } else if (lowerDesc.includes('application') || lowerDesc.includes('app') || lowerDesc.includes('ui')) {
-            category = 'application';
-        }
-
-        // Extract potential tags from description
-        const tagKeywords = ['api', 'database', 'auth', 'frontend', 'backend', 'deployment', 'monitoring', 'kubernetes', 'docker', 'ssl', 'dns', 'cache', 'storage'];
-        const tags = tagKeywords.filter((kw) => lowerDesc.includes(kw));
-
-        const mock: IncidentCreate = {
-            title,
-            description,
-            priority,
-            severity,
-            category,
-            ownerId: request.ownerId,
-            tags: tags.length > 0 ? tags : undefined,
-            affectedSystems: [],
-            assigneeIds: [],
-        };
-
-        // Simulate a network delay (1-2s) to mimic AI processing
-        return of(mock).pipe(delay(1500));
+        return this.http
+            .post<RunAgentResponse>(`${this.agentProxyEndpoint}/run_agent`, {
+                foundry_resource_name: this.foundryResourceName,
+                project_name: this.foundryProjectName,
+                agent_name: this.agentName,
+                message: inputContent,
+            }, { headers })
+            .pipe(map(() => void 0));
     }
 }
